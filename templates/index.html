@@ -1007,6 +1007,19 @@ if (localStorage.getItem('theme') === 'light') {
 }
 
 // ══════════════════════════════════════════════════════════════
+// XSS Prevention Utility
+// ══════════════════════════════════════════════════════════════
+function escapeHtml(str) {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+// ══════════════════════════════════════════════════════════════
 // API Helper
 // ══════════════════════════════════════════════════════════════
 async function api(path, method = 'GET', body = null) {
@@ -1032,7 +1045,7 @@ function toast(msg, type = 'info') {
   const icons = { success: '✅', error: '❌', info: 'ℹ️' };
   const el = document.createElement('div');
   el.className = `toast ${type}`;
-  el.innerHTML = `<span>${icons[type]||'ℹ️'}</span><span>${msg}</span>`;
+  el.innerHTML = `<span>${icons[type]||'ℹ️'}</span><span>${escapeHtml(msg)}</span>`;
   document.getElementById('toast-container').appendChild(el);
   setTimeout(() => {
     el.style.animation = 'fadeOut 0.3s ease forwards';
@@ -1124,19 +1137,19 @@ function scoreBadgeClass(score, raw) {
 
 function renderScoreRow(s) {
   const cls = scoreBadgeClass(s.score, s.score_raw);
-  const display = s.score_raw || s.score || '—';
+  const display = escapeHtml(s.score_raw || s.score || '—');
   return `<tr>
-    <td style="font-weight:500">${s.course_name || '—'}</td>
+    <td style="font-weight:500">${escapeHtml(s.course_name || '—')}</td>
     <td><span class="score-badge ${cls}">${display}</span></td>
     <td>
       <div class="gp-bar">
-        <span class="gp-val">${s.grade_point || '—'}</span>
+        <span class="gp-val">${escapeHtml(s.grade_point || '—')}</span>
       </div>
     </td>
-    <td>${s.credit || '—'}</td>
-    <td style="color:var(--muted);font-size:12px">${s.exam_type || '—'}</td>
-    <td style="color:var(--muted);font-size:12px">${s.course_nature || '—'}</td>
-    <td style="color:var(--muted);font-size:12px;font-family:'JetBrains Mono',monospace">${s.term || '—'}</td>
+    <td>${escapeHtml(s.credit || '—')}</td>
+    <td style="color:var(--muted);font-size:12px">${escapeHtml(s.exam_type || '—')}</td>
+    <td style="color:var(--muted);font-size:12px">${escapeHtml(s.course_nature || '—')}</td>
+    <td style="color:var(--muted);font-size:12px;font-family:'JetBrains Mono',monospace">${escapeHtml(s.term || '—')}</td>
   </tr>`;
 }
 
@@ -1169,10 +1182,10 @@ async function loadScores() {
         <tbody>${recent.map(s => {
           const cls = scoreBadgeClass(s.score, s.score_raw);
           return `<tr>
-            <td style="font-weight:500">${s.course_name||'—'}</td>
-            <td><span class="score-badge ${cls}">${s.score_raw||s.score||'—'}</span></td>
-            <td style="font-family:'JetBrains Mono',monospace;font-size:13px">${s.grade_point||'—'}</td>
-            <td style="color:var(--muted);font-size:12px">${s.term||'—'}</td>
+            <td style="font-weight:500">${escapeHtml(s.course_name||'—')}</td>
+            <td><span class="score-badge ${cls}">${escapeHtml(s.score_raw||s.score||'—')}</span></td>
+            <td style="font-family:'JetBrains Mono',monospace;font-size:13px">${escapeHtml(s.grade_point||'—')}</td>
+            <td style="color:var(--muted);font-size:12px">${escapeHtml(s.term||'—')}</td>
           </tr>`;
         }).join('')}</tbody>
       </table>`;
@@ -1421,9 +1434,9 @@ function renderSchedule(semester, courses) {
       if (c) {
         const colorCls = colorMap[c.name] || 'c0';
         html += `<div class="sch-cell">
-          <div class="sch-course ${colorCls}" title="${c.name} · ${c.teacher} · ${c.location}">
-            <div class="sch-course-name">${c.name}</div>
-            <div class="sch-course-loc">${c.location || ''}</div>
+          <div class="sch-course ${colorCls}" title="${escapeHtml(c.name)} · ${escapeHtml(c.teacher)} · ${escapeHtml(c.location)}">
+            <div class="sch-course-name">${escapeHtml(c.name)}</div>
+            <div class="sch-course-loc">${escapeHtml(c.location || '')}</div>
           </div>
         </div>`;
       } else {
