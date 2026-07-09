@@ -40,16 +40,17 @@ def get_panel_password():
 # ── 简单密码保护中间件 ────────────────────────────────────────
 @app.before_request
 def check_auth():
-    pw = get_panel_password()
+    pw = cfg.get("panel_password")
     if not pw:
-        return  # 未设置密码，跳过
-    # 设置页本身（GET /api/config/all）即使未授权也可访问，
-    # 防止配置了密码后前端完全无法工作
-    if request.path in ("/api/config/all", "/"):
+        return  # 未配置密码，全部放行
+    # 除根路径外，拦截所有 API 和静态资源
+    if request.path == "/":
         return
     if request.path.startswith("/api/") or request.path.startswith("/static/"):
         token = request.headers.get("X-Panel-Token", "") or request.args.get("token", "")
-        if token != pw:
+        user = request.headers.get("X-Panel-User", "") or request.args.get("user", "")
+        expected_user = cfg.get("panel_username", "")
+        if token != pw or user != expected_user:
             return jsonify({"error": "Unauthorized"}), 401
 
 
@@ -79,6 +80,7 @@ def api_status():
         "score_count": score_count,
         "schedule_semester": schedule.get("semester", ""),
         "schedule_updated_at": schedule.get("updated_at", ""),
+        "setup_required": not cfg.get("imu_username") or not cfg.get("imu_password"),
         "check_interval": cfg.get("check_interval", "10"),
         "server_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
     })
@@ -195,10 +197,10 @@ def api_logs():
 @app.route("/api/config/all", methods=["GET"])
 def api_config_all():
     """
-    获取所有配置（密码类字段用掩码返回）。
-    该接口无需 token 验证，以便前端在未配置密码时也能读取设置。
+    获取所有配置供前端展示。
+    已经受 X-Panel-Token 保护，返回明文以便前端小眼睛查看。
     """
-    return jsonify(cfg.get_all(mask_secrets=True))
+    return jsonify(cfg.get_all(mask_secrets=False))
 
 
 @app.route("/api/config/save", methods=["POST"])
@@ -215,6 +217,8 @@ def api_config_save():
     # 检测账号密码是否变化（变化则需重新登录）
     old_user = cfg.get("imu_username")
     old_pass = cfg.get("imu_password")
+    old_panel_user = cfg.get("panel_username", "")
+    old_panel_pw = cfg.get("panel_password")
 
     results = cfg.save(updates)
     db.add_log("INFO", f"配置已更新: {list(results.keys())}")
@@ -222,8 +226,11 @@ def api_config_save():
     # 若账号密码变化，清除旧 session 并重置锁定状态
     new_user = cfg.get("imu_username")
     new_pass = cfg.get("imu_password")
+    new_panel_user = cfg.get("panel_username", "")
+    new_panel_pw = cfg.get("panel_password")
+    
     session_reset = False
-    if old_user != new_user or old_pass != new_pass:
+    if old_user != new_user or old_pass != new_pass or old_panel_user != new_panel_user or old_panel_pw != new_panel_pw:
         sch._session = None
         sch._login_locked = False
         session_reset = True

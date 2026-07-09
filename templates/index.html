@@ -386,6 +386,30 @@
     .toggle-switch input:checked + .toggle-slider { background: var(--accent2); }
     .toggle-switch input:checked + .toggle-slider::before { transform: translateX(18px); }
 
+    /* ── Overlays ────────────────────────────────────── */
+    .overlay {
+      position: fixed; inset: 0; z-index: 10000;
+      background: rgba(13, 17, 23, 0.85); backdrop-filter: blur(8px);
+      display: none; align-items: center; justify-content: center;
+      flex-direction: column;
+    }
+    .overlay-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 16px; padding: 40px; width: 400px; max-width: 90vw;
+      box-shadow: var(--shadow); text-align: center;
+      animation: slideIn 0.3s ease;
+    }
+    .overlay-card h2 { font-size: 20px; font-weight: 600; margin-bottom: 12px; }
+    .overlay-card p { font-size: 14px; color: var(--muted); margin-bottom: 24px; line-height: 1.5; }
+    .overlay-card .input-group { margin-bottom: 20px; text-align: left; }
+    .overlay-card input {
+      width: 100%; font-size: 14px; padding: 12px 16px;
+      background: rgba(255,255,255,0.07); border: 1px solid var(--border);
+      border-radius: 8px; color: var(--text);
+      outline: none;
+    }
+    .overlay-card input:focus { border-color: var(--accent); }
+
     /* ── Toast notifications ─────────────────────────── */
     #toast-container {
       position: fixed; bottom: 24px; right: 24px;
@@ -747,9 +771,16 @@
             <div style="font-size:11px;color:var(--muted);margin-top:4px;">建议不低于 5 分钟，保存后立即生效</div>
           </div>
           <div>
+            <label class="cfg-label" for="cfg-panel-user">面板访问账号</label>
+            <input class="cfg-input" id="cfg-panel-user" type="text" placeholder="留空则不设账号限制" autocomplete="username">
+          </div>
+          <div>
             <label class="cfg-label" for="cfg-panel-pw">面板访问密码</label>
-            <input class="cfg-input" id="cfg-panel-pw" type="password" placeholder="留空则无需密码" autocomplete="new-password">
-            <div style="font-size:11px;color:var(--muted);margin-top:4px;">保护 Web 面板，重启后生效</div>
+            <div style="position:relative;">
+              <input class="cfg-input" id="cfg-panel-pw" type="password" placeholder="留空则不加密" autocomplete="new-password" style="padding-right:40px;">
+              <button onclick="togglePwd('cfg-panel-pw')" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--muted);font-size:15px;">👁</button>
+            </div>
+            <div style="font-size:11px;color:var(--muted);margin-top:4px;">保护 Web 面板，留空则无效</div>
           </div>
         </div>
         <div style="margin-top:14px;padding:12px 14px;background:rgba(88,166,255,0.06);border-radius:8px;border:1px solid rgba(88,166,255,0.15);">
@@ -799,8 +830,11 @@
               <input class="cfg-input" id="cfg-email-from" type="email" placeholder="your@qq.com">
             </div>
             <div>
-              <label class="cfg-label" for="cfg-email-pw">邮箱授权码</label>
-              <input class="cfg-input" id="cfg-email-pw" type="password" placeholder="非登录密码">
+              <label class="cfg-label" for="cfg-email-pw">SMTP 授权码</label>
+              <div style="position:relative;">
+                <input class="cfg-input" id="cfg-email-pw" type="password" placeholder="邮箱登录授权码" style="padding-right:40px;">
+                <button onclick="togglePwd('cfg-email-pw')" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--muted);font-size:15px;">👁</button>
+              </div>
             </div>
             <div>
               <label class="cfg-label" for="cfg-email-to">收件邮箱</label>
@@ -821,7 +855,10 @@
           </div>
           <div>
             <label class="cfg-label" for="cfg-sc-key">SendKey</label>
-            <input class="cfg-input" id="cfg-sc-key" type="password" placeholder="SCTxxxxxxxxxx">
+            <div style="position:relative;">
+              <input class="cfg-input" id="cfg-sc-key" type="password" placeholder="SCTxxxxxxxxxx" style="padding-right:40px;">
+              <button onclick="togglePwd('cfg-sc-key')" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--muted);font-size:15px;">👁</button>
+            </div>
           </div>
         </div>
 
@@ -868,6 +905,32 @@
 <!-- ── Toast Container ─────────────────────────────────── -->
 <div id="toast-container"></div>
 
+<!-- ── Auth Overlay ───────────────────────────────── -->
+<div class="overlay" id="auth-overlay">
+  <div class="overlay-card">
+    <div class="icon" style="font-size:40px;margin-bottom:20px;">🔒</div>
+    <h2>需要认证</h2>
+    <p>请输入面板访问密码以继续。如果您忘记了密码，请在本地数据库或 .env 文件中重置。</p>
+    <div class="input-group">
+      <input type="text" id="auth-username-input" placeholder="面板账号 (若无限制可留空)" onkeypress="if(event.key==='Enter') submitAuth()">
+    </div>
+    <div class="input-group">
+      <input type="password" id="auth-password-input" placeholder="面板密码" onkeypress="if(event.key==='Enter') submitAuth()">
+    </div>
+    <button class="btn btn-primary" style="width:100%; justify-content:center" onclick="submitAuth()">验证并进入</button>
+  </div>
+</div>
+
+<!-- ── Setup Overlay ──────────────────────────────── -->
+<div class="overlay" id="setup-overlay">
+  <div class="overlay-card">
+    <div class="icon" style="font-size:40px;margin-bottom:20px;">✨</div>
+    <h2>欢迎使用教务监控</h2>
+    <p>初次见面！您似乎还没有配置教务系统的账号密码。请先进入设置页面完成初始化配置，以便系统能为您抓取成绩。</p>
+    <button class="btn btn-primary" style="width:100%; justify-content:center" onclick="goToSetup()">立即配置</button>
+  </div>
+</div>
+
 <style>
 /* ── Config Form Styles ──────────────────────────────────── */
 .cfg-label {
@@ -898,7 +961,21 @@
 // State
 // ══════════════════════════════════════════════════════════════
 let allScores = [];
-let PANEL_PASSWORD = '';  // Loaded from DB on init
+
+// ── Overlay Actions ──
+function submitAuth() {
+  const user = document.getElementById('auth-username-input').value.trim();
+  const pwd = document.getElementById('auth-password-input').value;
+  if (!pwd) return toast('请输入密码', 'error');
+  localStorage.setItem('panel_user', user);
+  localStorage.setItem('panel_token', pwd);
+  location.reload();
+}
+
+function goToSetup() {
+  document.getElementById('setup-overlay').style.display = 'none';
+  showPage('settings');
+}
 
 // ══════════════════════════════════════════════════════════════
 // Navigation
@@ -937,9 +1014,14 @@ async function api(path, method = 'GET', body = null) {
     method,
     headers: { 'Content-Type': 'application/json' }
   };
-  if (PANEL_PASSWORD) opts.headers['X-Panel-Token'] = PANEL_PASSWORD;
+  opts.headers['X-Panel-User'] = localStorage.getItem('panel_user') || '';
+  opts.headers['X-Panel-Token'] = localStorage.getItem('panel_token') || '';
   if (body) opts.body = JSON.stringify(body);
   const r = await fetch(path, opts);
+  if (r.status === 401) {
+    document.getElementById('auth-overlay').style.display = 'flex';
+    throw new Error('Unauthorized');
+  }
   return r.json();
 }
 
@@ -964,6 +1046,9 @@ function toast(msg, type = 'info') {
 async function loadStatus() {
   try {
     const data = await api('/api/status');
+    if (data.setup_required) {
+      document.getElementById('setup-overlay').style.display = 'flex';
+    }
     const dot  = document.getElementById('status-dot');
     const text = document.getElementById('status-text');
 
@@ -1167,10 +1252,11 @@ function setTag(id, enabled) {
 async function loadSettings() {
   try {
     const d = await api('/api/config/all');
-    // Populate form fields
+
     document.getElementById('cfg-username').value  = d.imu_username || '';
     document.getElementById('cfg-password').value  = d.imu_password || '';
     document.getElementById('cfg-interval').value  = d.check_interval || '10';
+    document.getElementById('cfg-panel-user').value = d.panel_username || '';
     document.getElementById('cfg-panel-pw').value  = d.panel_password || '';
 
     document.getElementById('cfg-smtp-host').value = d.email_smtp_host || '';
@@ -1200,8 +1286,6 @@ async function loadSettings() {
     const elSysTime2 = document.getElementById('sysinfo-time'); if(elSysTime2) elSysTime2.textContent = st.server_time || '—';
     const elSysScores2 = document.getElementById('sysinfo-scores'); if(elSysScores2) elSysScores2.textContent = (st.score_count || 0) + ' 条';
     const elSysInterval2 = document.getElementById('sysinfo-interval'); if(elSysInterval2) elSysInterval2.textContent = (d.check_interval || '—') + ' 分钟';
-
-    PANEL_PASSWORD = d.panel_password || '';
   } catch(e) { toast('加载配置失败', 'error'); }
 }
 
@@ -1214,6 +1298,7 @@ async function saveSettings() {
     imu_username:       document.getElementById('cfg-username').value.trim(),
     imu_password:       document.getElementById('cfg-password').value,
     check_interval:     document.getElementById('cfg-interval').value.trim(),
+    panel_username:     document.getElementById('cfg-panel-user').value.trim(),
     panel_password:     document.getElementById('cfg-panel-pw').value,
     email_smtp_host:    document.getElementById('cfg-smtp-host').value.trim(),
     email_smtp_port:    document.getElementById('cfg-smtp-port').value.trim(),
@@ -1410,30 +1495,6 @@ async function loadLogs() {
 }
 
 // ══════════════════════════════════════════════════════════════
-// Settings
-// ══════════════════════════════════════════════════════════════
-async function loadSettings() {
-  try {
-    const d = await api('/api/config');
-    const mk = (enabled, desc) => `<span style="color:${enabled?'var(--accent2)':'var(--muted)'};">${enabled?'✅ 已启用':'⭕ 未配置'}</span>`;
-    document.getElementById('set-email-indicator').innerHTML = mk(d.email_enabled);
-    document.getElementById('set-email-desc').textContent = d.email_enabled ? `发送至: ${d.email_to}` : '在 .env 中配置 EMAIL_* 变量';
-    document.getElementById('set-sc-indicator').innerHTML = mk(d.serverchan_enabled);
-    document.getElementById('set-sc-desc').textContent = d.serverchan_enabled ? 'Server酱推送已启用' : '在 .env 中配置 SERVERCHAN_KEY';
-    document.getElementById('set-tg-indicator').innerHTML = mk(d.telegram_enabled);
-    document.getElementById('set-tg-desc').textContent = d.telegram_enabled ? 'Telegram Bot 已启用' : '在 .env 中配置 TELEGRAM_BOT_TOKEN 和 TELEGRAM_CHAT_ID';
-  } catch(e) {}
-}
-
-async function sendTestNotify() {
-  toast('发送测试通知中...', 'info');
-  try {
-    const d = await api('/api/notify/test', 'POST');
-    toast('测试通知已发送，请检查各渠道', 'success');
-  } catch(e) { toast('发送失败', 'error'); }
-}
-
-
 
 // ══════════════════════════════════════════════════════════════
 // Init

@@ -17,6 +17,7 @@ DEFAULTS = {
     "imu_username":       "",
     "imu_password":       "",
     "check_interval":     "10",
+    "panel_username":     "",
     "panel_password":     "",
     # 邮件
     "email_smtp_host":    "smtp.qq.com",
@@ -37,6 +38,7 @@ ENV_MAPPING = {
     "IMU_USERNAME":        "imu_username",
     "IMU_PASSWORD":        "imu_password",
     "CHECK_INTERVAL":      "check_interval",
+    "PANEL_USERNAME":      "panel_username",
     "PANEL_PASSWORD":      "panel_password",
     "EMAIL_SMTP_HOST":     "email_smtp_host",
     "EMAIL_SMTP_PORT":     "email_smtp_port",
@@ -77,7 +79,7 @@ def get_all(mask_secrets: bool = True) -> dict:
     读取所有配置项。
     mask_secrets=True 时，密码类字段返回掩码字符串（用于前端展示）。
     """
-    SECRET_KEYS = {"imu_password", "email_password", "serverchan_key", "telegram_bot_token"}
+    SECRET_KEYS = {"imu_password", "email_password", "serverchan_key", "telegram_bot_token", "panel_password"}
     result = {}
     for key in DEFAULTS:
         val = get(key)
