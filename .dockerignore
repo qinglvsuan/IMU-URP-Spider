@@ -1,0 +1,12 @@
+data/
+__pycache__/
+*.pyc
+*.pyo
+*.log
+.DS_Store
+.git/
+.gitignore
+README.md
+*.md
+imu-spider.service
+install.sh

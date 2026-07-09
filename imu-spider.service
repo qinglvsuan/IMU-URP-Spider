@@ -1,0 +1,17 @@
+[Unit]
+Description=IMU JWXT Spider - 内蒙古大学教务成绩监控
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/imu-spider
+ExecStart=/usr/bin/python3 /opt/imu-spider/app.py
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target

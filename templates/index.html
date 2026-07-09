@@ -1,0 +1,1452 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>内蒙古大学 · 成绩监控系统</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    /* ── Reset & Variables ────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #0d1117;
+      --surface:  #161b22;
+      --border:   #30363d;
+      --muted:    #8b949e;
+      --text:     #e6edf3;
+      --text-dim: #c9d1d9;
+      --accent:   #58a6ff;
+      --accent2:  #3fb950;
+      --warn:     #d29922;
+      --danger:   #f85149;
+      --purple:   #bc8cff;
+      --grad:     linear-gradient(135deg, #1f6feb 0%, #388bfd 100%);
+      --grad2:    linear-gradient(135deg, #238636 0%, #3fb950 100%);
+      --radius:   12px;
+      --shadow:   0 8px 32px rgba(0,0,0,0.4);
+    }
+    
+    :root.light-mode {
+      --bg:       #f6f8fa;
+      --surface:  #ffffff;
+      --border:   #d0d7de;
+      --muted:    #57606a;
+      --text:     #24292f;
+      --text-dim: #57606a;
+      --accent:   #0969da;
+      --accent2:  #1a7f37;
+      --warn:     #9a6700;
+      --danger:   #cf222e;
+      --purple:   #8250df;
+      --grad:     linear-gradient(135deg, #0969da 0%, #54a3ff 100%);
+      --grad2:    linear-gradient(135deg, #1a7f37 0%, #2ea043 100%);
+      --shadow:   0 8px 32px rgba(0,0,0,0.1);
+    }
+
+    html { scroll-behavior: smooth; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ── Background Glow ──────────────────────────────── */
+    body::before {
+      content: '';
+      position: fixed; inset: 0; z-index: -1;
+      background:
+        radial-gradient(ellipse 800px 500px at 20% -10%, rgba(31,111,235,0.08) 0%, transparent 70%),
+        radial-gradient(ellipse 600px 400px at 80% 110%, rgba(63,185,80,0.06) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    /* ── Layout ───────────────────────────────────────── */
+    .sidebar {
+      position: fixed; top: 0; left: 0; bottom: 0;
+      width: 240px; z-index: 100;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      display: flex; flex-direction: column;
+      padding: 20px 0;
+    }
+    .main-content {
+      margin-left: 240px;
+      padding: 32px;
+      min-height: 100vh;
+    }
+
+    /* ── Sidebar Brand ────────────────────────────────── */
+    .brand {
+      padding: 0 20px 20px;
+      border-bottom: 1px solid var(--border);
+    }
+    .brand-icon {
+      width: 40px; height: 40px;
+      background: var(--grad);
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px; margin-bottom: 10px;
+    }
+    .brand h1 { font-size: 14px; font-weight: 600; color: var(--text); }
+    .brand p  { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+    /* ── Nav ──────────────────────────────────────────── */
+    nav { padding: 16px 12px; flex: 1; }
+    .nav-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 9px 12px; border-radius: 8px;
+      cursor: pointer; color: var(--muted);
+      font-size: 13px; font-weight: 500;
+      transition: all 0.2s; text-decoration: none;
+      margin-bottom: 2px;
+    }
+    .nav-item:hover { background: rgba(88,166,255,0.08); color: var(--text); }
+    .nav-item.active { background: rgba(88,166,255,0.15); color: var(--accent); }
+    .nav-item .icon { width: 18px; height: 18px; flex-shrink: 0; }
+    .nav-label { flex: 1; }
+    .nav-badge {
+      background: var(--accent);
+      color: #fff; font-size: 10px; font-weight: 700;
+      padding: 1px 6px; border-radius: 10px; min-width: 18px;
+      text-align: center;
+    }
+
+    /* ── Status Indicator ─────────────────────────────── */
+    .sidebar-footer {
+      padding: 16px 20px;
+      border-top: 1px solid var(--border);
+    }
+    .status-dot {
+      display: inline-block; width: 8px; height: 8px;
+      border-radius: 50%; margin-right: 6px;
+      background: var(--muted);
+      transition: background 0.3s;
+    }
+    .status-dot.online { background: var(--accent2); box-shadow: 0 0 8px var(--accent2); }
+    .status-dot.offline { background: var(--danger); }
+    .status-text { font-size: 12px; color: var(--muted); }
+
+    /* ── Page Sections ────────────────────────────────── */
+    .page { display: none; }
+    .page.active { display: block; }
+
+    /* ── Header Bar ───────────────────────────────────── */
+    .page-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 28px;
+    }
+    .page-title { font-size: 22px; font-weight: 700; }
+    .page-subtitle { font-size: 13px; color: var(--muted); margin-top: 3px; }
+
+    /* ── Buttons ──────────────────────────────────────── */
+    .btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 8px 16px; border-radius: 8px;
+      font-size: 13px; font-weight: 500; cursor: pointer;
+      border: none; transition: all 0.2s; text-decoration: none;
+      font-family: inherit;
+    }
+    .btn-primary {
+      background: var(--grad); color: #fff;
+    }
+    .btn-primary:hover { opacity: 0.88; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(31,111,235,0.3); }
+    .btn-secondary {
+      background: rgba(255,255,255,0.06); color: var(--text-dim);
+      border: 1px solid var(--border);
+    }
+    .btn-secondary:hover { background: rgba(255,255,255,0.1); }
+    .btn-danger { background: rgba(248,81,73,0.15); color: var(--danger); border: 1px solid rgba(248,81,73,0.3); }
+    .btn-danger:hover { background: rgba(248,81,73,0.25); }
+    .btn-success { background: var(--grad2); color: #fff; }
+    .btn-success:hover { opacity: 0.88; }
+    .btn.loading { opacity: 0.6; pointer-events: none; }
+    .btn svg { width: 14px; height: 14px; }
+
+    /* ── Stat Cards ───────────────────────────────────── */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px; margin-bottom: 28px;
+    }
+    .stat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px 22px;
+      position: relative; overflow: hidden;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .stat-card:hover { transform: translateY(-2px); box-shadow: var(--shadow); }
+    .stat-card::before {
+      content: '';
+      position: absolute; top: 0; left: 0; right: 0;
+      height: 3px;
+    }
+    .stat-card.blue::before  { background: var(--grad); }
+    .stat-card.green::before { background: var(--grad2); }
+    .stat-card.purple::before{ background: linear-gradient(90deg,#bc8cff,#d2a8ff); }
+    .stat-card.yellow::before{ background: linear-gradient(90deg,#d29922,#f0c832); }
+    .stat-label  { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+    .stat-value  { font-size: 28px; font-weight: 700; line-height: 1; }
+    .stat-meta   { font-size: 12px; color: var(--muted); margin-top: 6px; }
+    .stat-icon   {
+      position: absolute; right: 16px; top: 16px;
+      width: 36px; height: 36px; border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px; opacity: 0.7;
+    }
+
+    /* ── Card ─────────────────────────────────────────── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+    .card-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+    }
+    .card-title { font-size: 15px; font-weight: 600; }
+    .card-body  { padding: 20px; }
+
+    /* ── Score Table ──────────────────────────────────── */
+    .score-filters {
+      display: flex; gap: 10px; flex-wrap: wrap;
+      padding: 14px 20px;
+      border-bottom: 1px solid var(--border);
+    }
+    .filter-input {
+      flex: 1; min-width: 180px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid var(--border); border-radius: 8px;
+      color: var(--text); padding: 7px 12px;
+      font-size: 13px; font-family: inherit;
+      outline: none; transition: border 0.2s;
+    }
+    .filter-input:focus { border-color: var(--accent); }
+    .filter-select {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid var(--border); border-radius: 8px;
+      color: var(--text); padding: 7px 10px;
+      font-size: 13px; font-family: inherit;
+      outline: none; cursor: pointer;
+    }
+    .filter-select option { background: #1c2128; }
+
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th {
+      padding: 10px 16px; text-align: left;
+      color: var(--muted); font-weight: 500; font-size: 11px;
+      text-transform: uppercase; letter-spacing: 0.5px;
+      border-bottom: 1px solid var(--border);
+      position: sticky; top: 0; background: var(--surface);
+    }
+    td { padding: 12px 16px; border-bottom: 1px solid rgba(48,54,61,0.6); }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: rgba(255,255,255,0.02); }
+
+    .score-badge {
+      display: inline-flex; align-items: center; justify-content: center;
+      padding: 3px 10px; border-radius: 20px;
+      font-weight: 600; font-size: 13px;
+      font-family: 'JetBrains Mono', monospace;
+      min-width: 48px;
+    }
+    .score-badge.excellent { background: rgba(63,185,80,0.15);  color: #3fb950; }
+    .score-badge.good      { background: rgba(88,166,255,0.15); color: #58a6ff; }
+    .score-badge.pass      { background: rgba(210,153,34,0.15); color: #d29922; }
+    .score-badge.fail      { background: rgba(248,81,73,0.15);  color: #f85149; }
+    .score-badge.text      { background: rgba(188,140,255,0.15);color: #bc8cff; }
+
+    .gp-bar {
+      display: inline-flex; align-items: center; gap: 8px;
+    }
+    .gp-val { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--muted); min-width: 30px; }
+
+    /* ── Schedule Grid ────────────────────────────────── */
+    .schedule-grid {
+      display: grid;
+      grid-template-columns: 60px repeat(7, 1fr);
+      gap: 1px;
+      background: var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+    .sch-header {
+      background: var(--surface);
+      padding: 10px 6px;
+      text-align: center; font-size: 12px; font-weight: 600;
+      color: var(--muted);
+    }
+    .sch-header.today { color: var(--accent); }
+    .sch-period {
+      background: var(--surface);
+      padding: 8px 4px;
+      text-align: center; font-size: 11px; color: var(--muted);
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+    }
+    .sch-cell {
+      background: var(--bg);
+      min-height: 64px;
+      position: relative;
+    }
+    .sch-course {
+      position: absolute; inset: 2px;
+      border-radius: 6px;
+      padding: 6px 8px;
+      font-size: 11px; line-height: 1.4;
+      overflow: hidden;
+    }
+    .sch-course-name { font-weight: 600; }
+    .sch-course-loc  { color: rgba(255,255,255,0.6); margin-top: 2px; }
+
+    /* ── Course color palette ────────────────────────── */
+    .c0  { background: rgba(88,166,255,0.25); border-left: 3px solid #58a6ff; color: #58a6ff; }
+    .c1  { background: rgba(63,185,80,0.25);  border-left: 3px solid #3fb950; color: #3fb950; }
+    .c2  { background: rgba(188,140,255,0.25);border-left: 3px solid #bc8cff; color: #bc8cff; }
+    .c3  { background: rgba(248,81,73,0.25);  border-left: 3px solid #f85149; color: #f85149; }
+    .c4  { background: rgba(210,153,34,0.25); border-left: 3px solid #d29922; color: #d29922; }
+    .c5  { background: rgba(240,136,62,0.25); border-left: 3px solid #f0883e; color: #f0883e; }
+    .c6  { background: rgba(86,211,234,0.25); border-left: 3px solid #56d3ea; color: #56d3ea; }
+
+    /* ── Log entries ──────────────────────────────────── */
+    .log-list { font-family: 'JetBrains Mono', monospace; font-size: 12px; }
+    .log-entry {
+      display: flex; gap: 12px; align-items: flex-start;
+      padding: 8px 16px;
+      border-bottom: 1px solid rgba(48,54,61,0.4);
+    }
+    .log-entry:last-child { border-bottom: none; }
+    .log-time   { color: var(--muted); flex-shrink: 0; }
+    .log-level  {
+      padding: 1px 6px; border-radius: 4px;
+      font-size: 10px; font-weight: 700; flex-shrink: 0;
+    }
+    .log-level.INFO  { background: rgba(88,166,255,0.15); color: #58a6ff; }
+    .log-level.WARN  { background: rgba(210,153,34,0.15); color: #d29922; }
+    .log-level.ERROR { background: rgba(248,81,73,0.15);  color: #f85149; }
+    .log-msg { color: var(--text-dim); }
+
+    /* ── GPA Ring ─────────────────────────────────────── */
+    .gpa-display {
+      display: flex; align-items: center; gap: 32px;
+      flex-wrap: wrap;
+    }
+    .gpa-ring {
+      position: relative; width: 140px; height: 140px; flex-shrink: 0;
+    }
+    .gpa-ring svg { transform: rotate(-90deg); }
+    .gpa-ring-label {
+      position: absolute; inset: 0;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+    }
+    .gpa-ring-val  { font-size: 28px; font-weight: 700; color: var(--accent); }
+    .gpa-ring-text { font-size: 11px; color: var(--muted); }
+    .gpa-stats { display: flex; flex-direction: column; gap: 16px; flex: 1; min-width: 200px; }
+    .gpa-stat-row {
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .gpa-stat-name { font-size: 13px; color: var(--muted); }
+    .gpa-stat-val  { font-size: 18px; font-weight: 600; font-family: 'JetBrains Mono', monospace; }
+    .gpa-bar-wrap  { height: 6px; background: rgba(255,255,255,0.08); border-radius: 3px; margin-top: 4px; }
+    .gpa-bar-fill  { height: 100%; border-radius: 3px; background: var(--grad); transition: width 0.8s ease; }
+
+    /* ── Settings ─────────────────────────────────────── */
+    .settings-section { margin-bottom: 28px; }
+    .settings-section h3 { font-size: 14px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 14px; }
+    .setting-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 0; border-bottom: 1px solid var(--border);
+    }
+    .setting-row:last-child { border-bottom: none; }
+    .setting-label { font-size: 14px; font-weight: 500; }
+    .setting-desc  { font-size: 12px; color: var(--muted); margin-top: 2px; }
+    .toggle-switch {
+      position: relative; width: 40px; height: 22px; flex-shrink: 0;
+    }
+    .toggle-switch input { opacity: 0; width: 0; height: 0; }
+    .toggle-slider {
+      position: absolute; inset: 0;
+      background: rgba(255,255,255,0.1); border-radius: 11px;
+      cursor: pointer; transition: 0.3s;
+    }
+    .toggle-slider::before {
+      content: ''; position: absolute;
+      width: 16px; height: 16px; border-radius: 50%;
+      background: #fff; top: 3px; left: 3px;
+      transition: 0.3s;
+    }
+    .toggle-switch input:checked + .toggle-slider { background: var(--accent2); }
+    .toggle-switch input:checked + .toggle-slider::before { transform: translateX(18px); }
+
+    /* ── Toast notifications ─────────────────────────── */
+    #toast-container {
+      position: fixed; bottom: 24px; right: 24px;
+      z-index: 9999; display: flex; flex-direction: column; gap: 10px;
+    }
+    .toast {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 10px; padding: 12px 18px;
+      font-size: 13px; min-width: 240px; max-width: 360px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+      display: flex; align-items: center; gap: 10px;
+      animation: slideIn 0.3s ease;
+    }
+    .toast.success { border-color: rgba(63,185,80,0.4); }
+    .toast.error   { border-color: rgba(248,81,73,0.4); }
+    .toast.info    { border-color: rgba(88,166,255,0.4); }
+    @keyframes slideIn {
+      from { transform: translateX(100%); opacity: 0; }
+      to   { transform: translateX(0);    opacity: 1; }
+    }
+    @keyframes fadeOut {
+      from { opacity: 1; }
+      to   { opacity: 0; transform: translateX(20px); }
+    }
+
+    /* ── Empty state ──────────────────────────────────── */
+    .empty-state {
+      text-align: center; padding: 60px 20px;
+      color: var(--muted);
+    }
+    .empty-state .icon { font-size: 48px; margin-bottom: 16px; }
+    .empty-state h3 { font-size: 16px; margin-bottom: 8px; color: var(--text-dim); }
+    .empty-state p  { font-size: 13px; }
+
+    /* ── Loading spinner ──────────────────────────────── */
+    .spinner {
+      display: inline-block; width: 14px; height: 14px;
+      border: 2px solid rgba(255,255,255,0.2);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Responsive ───────────────────────────────────── */
+    @media (max-width: 768px) {
+      .sidebar { transform: translateX(-100%); transition: transform 0.3s; }
+      .sidebar.open { transform: translateX(0); }
+      .main-content { margin-left: 0; padding: 16px; }
+      .stats-grid { grid-template-columns: 1fr 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Sidebar ─────────────────────────────────────────── -->
+<aside class="sidebar" id="sidebar">
+  <div class="brand">
+    <div class="brand-icon">🎓</div>
+    <h1>IMU Spider</h1>
+    <p>内蒙古大学成绩监控</p>
+  </div>
+
+  <nav>
+    <a class="nav-item active" data-page="dashboard" onclick="showPage('dashboard')">
+      <svg class="icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>
+      <span class="nav-label">总览</span>
+    </a>
+    <a class="nav-item" data-page="scores" onclick="showPage('scores')">
+      <svg class="icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+      <span class="nav-label">成绩</span>
+      <span class="nav-badge" id="score-badge">0</span>
+    </a>
+    <a class="nav-item" data-page="schedule" onclick="showPage('schedule')">
+      <svg class="icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+      <span class="nav-label">课表</span>
+    </a>
+    <a class="nav-item" data-page="logs" onclick="showPage('logs')">
+      <svg class="icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+      <span class="nav-label">日志</span>
+    </a>
+    <a class="nav-item" data-page="settings" onclick="showPage('settings')">
+      <svg class="icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+      <span class="nav-label">设置</span>
+    </a>
+    <a class="nav-item" onclick="toggleTheme()" style="margin-top: auto;">
+      <svg class="icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
+      <span class="nav-label" id="theme-label">亮色模式</span>
+    </a>
+  </nav>
+
+  <div class="sidebar-footer">
+    <div style="display:flex;align-items:center;margin-bottom:6px;">
+      <span class="status-dot" id="status-dot"></span>
+      <span class="status-text" id="status-text">检查中...</span>
+    </div>
+    <div style="font-size:11px;color:var(--muted)" id="last-check">—</div>
+  </div>
+</aside>
+
+<!-- ── Main Content ────────────────────────────────────── -->
+<main class="main-content">
+
+  <!-- ══ DASHBOARD ══ -->
+  <section class="page active" id="page-dashboard">
+    <div class="page-header">
+      <div>
+        <div class="page-title">📊 总览</div>
+        <div class="page-subtitle" id="student-subtitle">加载中...</div>
+      </div>
+      <div style="display:flex;gap:10px;">
+        <button class="btn btn-secondary" onclick="refreshScores()" id="btn-refresh-scores">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+          刷新成绩
+        </button>
+        <button class="btn btn-primary" onclick="triggerLogin()" id="btn-login">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"/></svg>
+          重新登录
+        </button>
+      </div>
+    </div>
+
+    <div class="stats-grid">
+      <div class="stat-card blue">
+        <div class="stat-icon">📚</div>
+        <div class="stat-label">成绩总数</div>
+        <div class="stat-value" id="stat-score-count">—</div>
+        <div class="stat-meta">已记录课程</div>
+      </div>
+      <div class="stat-card green">
+        <div class="stat-icon">⭐</div>
+        <div class="stat-label">当前 GPA</div>
+        <div class="stat-value" id="stat-gpa">—</div>
+        <div class="stat-meta">绩点</div>
+      </div>
+      <div class="stat-card purple">
+        <div class="stat-icon">🏆</div>
+        <div class="stat-label">已修学分</div>
+        <div class="stat-value" id="stat-credits">—</div>
+        <div class="stat-meta">学分</div>
+      </div>
+      <div class="stat-card yellow">
+        <div class="stat-icon">⏱️</div>
+        <div class="stat-label">检查间隔</div>
+        <div class="stat-value" id="stat-interval">—</div>
+        <div class="stat-meta">分钟/次</div>
+      </div>
+    </div>
+
+    <!-- GPA 详情卡 -->
+    <div class="card" style="margin-bottom:20px;">
+      <div class="card-header">
+        <div class="card-title">🎯 学业概况</div>
+      </div>
+      <div class="card-body">
+        <div class="gpa-display">
+          <div class="gpa-ring">
+            <svg width="140" height="140" viewBox="0 0 140 140">
+              <circle cx="70" cy="70" r="58" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="14"/>
+              <circle id="gpa-ring-arc" cx="70" cy="70" r="58" fill="none"
+                      stroke="url(#ringGrad)" stroke-width="14"
+                      stroke-linecap="round"
+                      stroke-dasharray="364.4"
+                      stroke-dashoffset="364.4"
+                      style="transition:stroke-dashoffset 1s ease"/>
+              <defs>
+                <linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%"   stop-color="#1f6feb"/>
+                  <stop offset="100%" stop-color="#58a6ff"/>
+                </linearGradient>
+              </defs>
+            </svg>
+            <div class="gpa-ring-label">
+              <span class="gpa-ring-val" id="gpa-ring-val">—</span>
+              <span class="gpa-ring-text">GPA</span>
+            </div>
+          </div>
+          <div class="gpa-stats">
+            <div class="gpa-stat-row">
+              <div>
+                <div class="gpa-stat-name">已修学分</div>
+                <div class="gpa-bar-wrap" style="width:200px">
+                  <div class="gpa-bar-fill" id="credit-bar" style="width:0%"></div>
+                </div>
+              </div>
+              <div class="gpa-stat-val" id="gpa-credits-val">—</div>
+            </div>
+            <div class="gpa-stat-row">
+              <div>
+                <div class="gpa-stat-name">必修学分</div>
+              </div>
+              <div class="gpa-stat-val" id="gpa-req-val">—</div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 最新学期成绩 -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">🕐 最新学期成绩 <span id="latest-term-badge" style="font-size: 12px; color: var(--accent); margin-left: 8px;"></span></div>
+        <button class="btn btn-secondary" onclick="showPage('scores')" style="font-size:12px;padding:6px 12px;">查看全部</button>
+      </div>
+      <div id="recent-scores-body">
+        <div class="empty-state">
+          <div class="icon">📭</div>
+          <h3>暂无成绩</h3>
+          <p>点击"刷新成绩"开始获取</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ SCORES ══ -->
+  <section class="page" id="page-scores">
+    <div class="page-header">
+      <div>
+        <div class="page-title">📋 成绩列表</div>
+        <div class="page-subtitle" id="scores-subtitle">共 0 门课程</div>
+      </div>
+      <button class="btn btn-primary" onclick="refreshScores()">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+        刷新成绩
+      </button>
+    </div>
+
+    <div class="card">
+      <div class="score-filters">
+        <input type="text" class="filter-input" id="score-search" placeholder="🔍 搜索课程名称..." oninput="filterScores()">
+        <select class="filter-select" id="score-term" onchange="filterScores()">
+          <option value="">全部学期</option>
+        </select>
+        <select class="filter-select" id="score-sort" onchange="filterScores()">
+          <option value="term_desc">按学期 ↓</option>
+          <option value="score_desc">按成绩 ↓</option>
+          <option value="gp_desc">按绩点 ↓</option>
+          <option value="credit_desc">按学分 ↓</option>
+        </select>
+      </div>
+      <div style="overflow-x:auto;">
+        <table>
+          <thead>
+            <tr>
+              <th>课程名称</th>
+              <th>成绩</th>
+              <th>绩点</th>
+              <th>学分</th>
+              <th>考核方式</th>
+              <th>课程性质</th>
+              <th>学期</th>
+            </tr>
+          </thead>
+          <tbody id="scores-table-body">
+            <tr><td colspan="7">
+              <div class="empty-state"><div class="icon">📭</div><h3>暂无成绩数据</h3></div>
+            </td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ SCHEDULE ══ -->
+  <section class="page" id="page-schedule">
+    <div class="page-header">
+      <div>
+        <div class="page-title">📅 本学期课表</div>
+        <div class="page-subtitle" id="schedule-semester">加载中...</div>
+      </div>
+      <button class="btn btn-primary" onclick="refreshSchedule()">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+        刷新课表
+      </button>
+    </div>
+    <div class="card">
+      <div class="card-body" style="padding:0;overflow-x:auto;">
+        <div id="schedule-container" style="min-width:700px;padding:16px;">
+          <div class="empty-state"><div class="icon">📅</div><h3>暂无课表数据</h3><p>点击"刷新课表"获取</p></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ LOGS ══ -->
+  <section class="page" id="page-logs">
+    <div class="page-header">
+      <div>
+        <div class="page-title">📝 操作日志</div>
+        <div class="page-subtitle">系统运行记录</div>
+      </div>
+      <button class="btn btn-secondary" onclick="loadLogs()">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+        刷新
+      </button>
+    </div>
+    <div class="card">
+      <div class="log-list" id="logs-body">
+        <div class="empty-state"><div class="icon">📝</div><h3>暂无日志</h3></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ SETTINGS ══ -->
+  <section class="page" id="page-settings">
+    <div class="page-header">
+      <div>
+        <div class="page-title">⚙️ 设置</div>
+        <div class="page-subtitle">在此直接配置所有参数，无需编辑服务器文件</div>
+      </div>
+      <div style="display:flex;gap:10px;">
+
+        <button class="btn btn-primary" id="btn-save-config" onclick="saveSettings()">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+          保存所有设置
+        </button>
+      </div>
+    </div>
+
+    <!-- 账号设置 -->
+    <div class="card" style="margin-bottom:20px;">
+      <div class="card-header">
+        <div class="card-title">🔑 教务系统账号</div>
+        <div id="account-status" style="font-size:12px;color:var(--muted)">—</div>
+      </div>
+      <div class="card-body">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+          <div>
+            <label class="cfg-label" for="cfg-username">学号</label>
+            <input class="cfg-input" id="cfg-username" type="text" placeholder="请填入学号" autocomplete="username">
+          </div>
+          <div>
+            <label class="cfg-label" for="cfg-password">密码</label>
+            <div style="position:relative;">
+              <input class="cfg-input" id="cfg-password" type="password" placeholder="教务系统密码" autocomplete="current-password" style="padding-right:40px;">
+              <button onclick="togglePwd('cfg-password')" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--muted);font-size:15px;">👁</button>
+            </div>
+          </div>
+        </div>
+        <div style="margin-top:14px;display:flex;gap:10px;align-items:center;">
+          <button class="btn btn-success" id="btn-login" onclick="triggerLogin()">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14"/></svg>
+            保存并立即登录
+          </button>
+          <span style="font-size:12px;color:var(--muted)">修改账号密码后需重新登录</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 系统设置 -->
+    <div class="card" style="margin-bottom:20px;">
+      <div class="card-header"><div class="card-title">🖥️ 系统设置</div></div>
+      <div class="card-body">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+          <div>
+            <label class="cfg-label" for="cfg-interval">成绩检查间隔（分钟）</label>
+            <input class="cfg-input" id="cfg-interval" type="number" min="1" max="1440" placeholder="10">
+            <div style="font-size:11px;color:var(--muted);margin-top:4px;">建议不低于 5 分钟，保存后立即生效</div>
+          </div>
+          <div>
+            <label class="cfg-label" for="cfg-panel-pw">面板访问密码</label>
+            <input class="cfg-input" id="cfg-panel-pw" type="password" placeholder="留空则无需密码" autocomplete="new-password">
+            <div style="font-size:11px;color:var(--muted);margin-top:4px;">保护 Web 面板，重启后生效</div>
+          </div>
+        </div>
+        <div style="margin-top:14px;padding:12px 14px;background:rgba(88,166,255,0.06);border-radius:8px;border:1px solid rgba(88,166,255,0.15);">
+          <span style="font-size:12px;color:var(--muted)">服务器时间：</span>
+          <span id="sysinfo-time" style="font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--accent)">—</span>
+          <span style="margin:0 16px;color:var(--border)">|</span>
+          <span style="font-size:12px;color:var(--muted)">已录成绩：</span>
+          <span id="sysinfo-scores" style="font-family:'JetBrains Mono',monospace;color:var(--text)">—</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 通知设置 -->
+    <div class="card" style="margin-bottom:20px;">
+      <div class="card-header"><div class="card-title">🔔 推送通知</div>
+        <span style="font-size:12px;color:var(--muted)">填入即启用，留空则禁用</span>
+      </div>
+      <div class="card-body">
+
+        <!-- 邮件 -->
+        <div style="margin-bottom:24px;">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;">
+            <span style="font-size:16px">📧</span>
+            <span style="font-weight:600;font-size:14px;">邮件通知 (SMTP)</span>
+            <span class="cfg-tag" id="tag-email">未配置</span>
+          </div>
+          <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:12px;margin-bottom:12px;">
+            <div>
+              <label class="cfg-label" for="cfg-smtp-host">SMTP 服务器</label>
+              <input class="cfg-input" id="cfg-smtp-host" type="text" placeholder="smtp.qq.com">
+            </div>
+            <div>
+              <label class="cfg-label" for="cfg-smtp-port">端口</label>
+              <input class="cfg-input" id="cfg-smtp-port" type="number" placeholder="465">
+            </div>
+            <div>
+              <label class="cfg-label">SSL加密</label>
+              <select class="cfg-input" id="cfg-smtp-ssl">
+                <option value="true">启用 (推荐)</option>
+                <option value="false">禁用</option>
+              </select>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;">
+            <div>
+              <label class="cfg-label" for="cfg-email-from">发件邮箱</label>
+              <input class="cfg-input" id="cfg-email-from" type="email" placeholder="your@qq.com">
+            </div>
+            <div>
+              <label class="cfg-label" for="cfg-email-pw">邮箱授权码</label>
+              <input class="cfg-input" id="cfg-email-pw" type="password" placeholder="非登录密码">
+            </div>
+            <div>
+              <label class="cfg-label" for="cfg-email-to">收件邮箱</label>
+              <input class="cfg-input" id="cfg-email-to" type="email" placeholder="接收通知的地址">
+            </div>
+          </div>
+        </div>
+
+        <div style="height:1px;background:var(--border);margin:20px 0;"></div>
+
+        <!-- Server酱 -->
+        <div style="margin-bottom:24px;">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;">
+            <span style="font-size:16px">📱</span>
+            <span style="font-weight:600;font-size:14px;">Server酱（微信推送）</span>
+            <span class="cfg-tag" id="tag-serverchan">未配置</span>
+            <a href="https://sct.ftqq.com/" target="_blank" style="font-size:12px;color:var(--accent);text-decoration:none;margin-left:auto;">→ 获取 Key</a>
+          </div>
+          <div>
+            <label class="cfg-label" for="cfg-sc-key">SendKey</label>
+            <input class="cfg-input" id="cfg-sc-key" type="password" placeholder="SCTxxxxxxxxxx">
+          </div>
+        </div>
+
+        <div style="height:1px;background:var(--border);margin:20px 0;"></div>
+
+        <!-- Telegram -->
+        <div>
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;">
+            <span style="font-size:16px">✈️</span>
+            <span style="font-weight:600;font-size:14px;">Telegram Bot</span>
+            <span class="cfg-tag" id="tag-telegram">未配置</span>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+            <div>
+              <label class="cfg-label" for="cfg-tg-token">Bot Token <span style="color:var(--muted);font-weight:400">(从 @BotFather 获取)</span></label>
+              <input class="cfg-input" id="cfg-tg-token" type="password" placeholder="123456:ABCDefg...">
+            </div>
+            <div>
+              <label class="cfg-label" for="cfg-tg-chatid">Chat ID <span style="color:var(--muted);font-weight:400">(从 @userinfobot 获取)</span></label>
+              <input class="cfg-input" id="cfg-tg-chatid" type="text" placeholder="12345678">
+            </div>
+          </div>
+        </div>
+
+        <div style="margin-top:20px;padding-top:20px;border-top:1px solid var(--border);display:flex;gap:10px;">
+          <button class="btn btn-secondary" onclick="sendTestNotify()">🔔 发送测试通知</button>
+          <span style="font-size:12px;color:var(--muted);align-self:center;">验证已保存的通知配置</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 危险操作 -->
+    <div class="card">
+      <div class="card-header"><div class="card-title" style="color:var(--danger);">⚡ 操作</div></div>
+      <div class="card-body" style="display:flex;gap:12px;flex-wrap:wrap;">
+        <button class="btn btn-secondary" onclick="refreshScores()">📊 立即检查成绩</button>
+        <button class="btn btn-danger" onclick="triggerLogin()">🔄 强制重新登录</button>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<!-- ── Toast Container ─────────────────────────────────── -->
+<div id="toast-container"></div>
+
+<style>
+/* ── Config Form Styles ──────────────────────────────────── */
+.cfg-label {
+  display:block; font-size:11px; font-weight:600;
+  text-transform:uppercase; letter-spacing:0.5px;
+  color:var(--muted); margin-bottom:6px;
+}
+.cfg-input {
+  width:100%; background:rgba(255,255,255,0.05);
+  border:1px solid var(--border); border-radius:8px;
+  color:var(--text); padding:9px 12px;
+  font-size:13px; font-family:inherit;
+  outline:none; transition:border 0.2s;
+  -webkit-appearance: none;
+}
+.cfg-input:focus { border-color:var(--accent); background:rgba(88,166,255,0.05); }
+.cfg-tag {
+  display:inline-block; padding:2px 8px; border-radius:10px;
+  font-size:11px; font-weight:600;
+  background:rgba(139,148,158,0.15); color:var(--muted);
+  transition: all 0.3s;
+}
+.cfg-tag.enabled { background:rgba(63,185,80,0.15); color:var(--accent2); }
+</style>
+
+<script>
+// ══════════════════════════════════════════════════════════════
+// State
+// ══════════════════════════════════════════════════════════════
+let allScores = [];
+let PANEL_PASSWORD = '';  // Loaded from DB on init
+
+// ══════════════════════════════════════════════════════════════
+// Navigation
+// ══════════════════════════════════════════════════════════════
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  document.querySelector(`.nav-item[data-page="${name}"]`).classList.add('active');
+
+  if (name === 'scores') loadScores();
+  if (name === 'schedule') loadSchedule();
+  if (name === 'logs') loadLogs();
+  if (name === 'settings') loadSettings();
+}
+
+function toggleTheme() {
+  const isLight = document.documentElement.classList.toggle('light-mode');
+  localStorage.setItem('theme', isLight ? 'light' : 'dark');
+  document.getElementById('theme-label').textContent = isLight ? '暗色模式' : '亮色模式';
+}
+
+// 自动加载主题
+if (localStorage.getItem('theme') === 'light') {
+  document.documentElement.classList.add('light-mode');
+  window.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('theme-label').textContent = '暗色模式';
+  });
+}
+
+// ══════════════════════════════════════════════════════════════
+// API Helper
+// ══════════════════════════════════════════════════════════════
+async function api(path, method = 'GET', body = null) {
+  const opts = {
+    method,
+    headers: { 'Content-Type': 'application/json' }
+  };
+  if (PANEL_PASSWORD) opts.headers['X-Panel-Token'] = PANEL_PASSWORD;
+  if (body) opts.body = JSON.stringify(body);
+  const r = await fetch(path, opts);
+  return r.json();
+}
+
+// ══════════════════════════════════════════════════════════════
+// Toast
+// ══════════════════════════════════════════════════════════════
+function toast(msg, type = 'info') {
+  const icons = { success: '✅', error: '❌', info: 'ℹ️' };
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  el.innerHTML = `<span>${icons[type]||'ℹ️'}</span><span>${msg}</span>`;
+  document.getElementById('toast-container').appendChild(el);
+  setTimeout(() => {
+    el.style.animation = 'fadeOut 0.3s ease forwards';
+    setTimeout(() => el.remove(), 300);
+  }, 3500);
+}
+
+// ══════════════════════════════════════════════════════════════
+// Status
+// ══════════════════════════════════════════════════════════════
+async function loadStatus() {
+  try {
+    const data = await api('/api/status');
+    const dot  = document.getElementById('status-dot');
+    const text = document.getElementById('status-text');
+
+    if (data.logged_in) {
+      dot.className = 'status-dot online';
+      text.textContent = '已登录';
+    } else {
+      dot.className = 'status-dot offline';
+      text.textContent = '未登录';
+    }
+
+    const elTime = document.getElementById('last-check'); if(elTime) elTime.textContent = '服务器: ' + data.server_time;
+    const elScoreCount = document.getElementById('stat-score-count'); if(elScoreCount) elScoreCount.textContent = data.score_count;
+    const elInterval = document.getElementById('stat-interval'); if(elInterval) elInterval.textContent = data.check_interval;
+    const elBadge = document.getElementById('score-badge'); if(elBadge) elBadge.textContent = data.score_count;
+    const elSysInterval = document.getElementById('sysinfo-interval'); if(elSysInterval) elSysInterval.textContent = data.check_interval + ' 分钟';
+    const elSysTime = document.getElementById('sysinfo-time'); if(elSysTime) elSysTime.textContent = data.server_time;
+    const elSysScores = document.getElementById('sysinfo-scores'); if(elSysScores) elSysScores.textContent = data.score_count + ' 条';
+
+    if (data.student && data.student.name) {
+      let subtitle = data.student.name;
+      if (data.student.student_id) subtitle += ` · ${data.student.student_id}`;
+      if (data.student.major) subtitle += ` · ${data.student.major}`;
+      document.getElementById('student-subtitle').textContent = subtitle;
+      document.getElementById('scores-subtitle').textContent = `共 ${data.score_count} 门课程`;
+    }
+  } catch(e) {
+    document.getElementById('status-text').textContent = '离线';
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+// GPA
+// ══════════════════════════════════════════════════════════════
+async function loadGPA() {
+  try {
+    const d = await api('/api/gpa');
+    if (!d || !d.gpa) return;
+    const gpa = parseFloat(d.gpa) || 0;
+    const MAX_GPA = 4.0;
+
+    document.getElementById('stat-gpa').textContent = gpa.toFixed(2);
+    document.getElementById('gpa-ring-val').textContent = gpa.toFixed(2);
+    document.getElementById('stat-credits').textContent = d.credits_earned || '—';
+    document.getElementById('gpa-credits-val').textContent = (d.credits_earned || 0) + ' 分';
+    document.getElementById('gpa-req-val').textContent = (d.credits_required || 0) + ' 分';
+
+    // Animate ring
+    const circumference = 364.4;
+    const offset = circumference - (gpa / MAX_GPA) * circumference;
+    document.getElementById('gpa-ring-arc').style.strokeDashoffset = offset;
+
+    // Credit bar
+    const pct = d.credits_required
+      ? Math.min(100, (d.credits_earned / d.credits_required) * 100)
+      : 0;
+    document.getElementById('credit-bar').style.width = pct + '%';
+  } catch(e) {}
+}
+
+// ══════════════════════════════════════════════════════════════
+// Scores
+// ══════════════════════════════════════════════════════════════
+function scoreBadgeClass(score, raw) {
+  if (raw && !/^\d/.test(raw)) return 'text';  // 文字成绩（优、良等）
+  const n = parseFloat(score);
+  if (isNaN(n)) return 'text';
+  if (n >= 90) return 'excellent';
+  if (n >= 75) return 'good';
+  if (n >= 60) return 'pass';
+  return 'fail';
+}
+
+function renderScoreRow(s) {
+  const cls = scoreBadgeClass(s.score, s.score_raw);
+  const display = s.score_raw || s.score || '—';
+  return `<tr>
+    <td style="font-weight:500">${s.course_name || '—'}</td>
+    <td><span class="score-badge ${cls}">${display}</span></td>
+    <td>
+      <div class="gp-bar">
+        <span class="gp-val">${s.grade_point || '—'}</span>
+      </div>
+    </td>
+    <td>${s.credit || '—'}</td>
+    <td style="color:var(--muted);font-size:12px">${s.exam_type || '—'}</td>
+    <td style="color:var(--muted);font-size:12px">${s.course_nature || '—'}</td>
+    <td style="color:var(--muted);font-size:12px;font-family:'JetBrains Mono',monospace">${s.term || '—'}</td>
+  </tr>`;
+}
+
+async function loadScores() {
+  try {
+    const d = await api('/api/scores');
+    allScores = d.scores || [];
+    populateTermFilter();
+    filterScores();
+
+    // Recent scores on dashboard (all scores of the latest term)
+    let recent = [];
+    if (allScores.length > 0) {
+      // Find the latest term by string comparison since terms like '2024-2025-1' are naturally sortable
+      const terms = [...new Set(allScores.map(s => s.term).filter(Boolean))].sort().reverse();
+      if (terms.length > 0) {
+        const latestTerm = terms[0];
+        document.getElementById('latest-term-badge').textContent = `(${latestTerm})`;
+        recent = allScores.filter(s => s.term === latestTerm);
+        // Sort the recent array by score descending
+        recent.sort((a, b) => (b.score || 0) - (a.score || 0));
+      }
+    }
+    const recBody = document.getElementById('recent-scores-body');
+    if (recent.length) {
+      recBody.innerHTML = `<table style="width:100%">
+        <thead><tr>
+          <th>课程名称</th><th>成绩</th><th>绩点</th><th>学期</th>
+        </tr></thead>
+        <tbody>${recent.map(s => {
+          const cls = scoreBadgeClass(s.score, s.score_raw);
+          return `<tr>
+            <td style="font-weight:500">${s.course_name||'—'}</td>
+            <td><span class="score-badge ${cls}">${s.score_raw||s.score||'—'}</span></td>
+            <td style="font-family:'JetBrains Mono',monospace;font-size:13px">${s.grade_point||'—'}</td>
+            <td style="color:var(--muted);font-size:12px">${s.term||'—'}</td>
+          </tr>`;
+        }).join('')}</tbody>
+      </table>`;
+    }
+  } catch(e) { toast('加载成绩失败', 'error'); }
+}
+
+function populateTermFilter() {
+  const terms = [...new Set(allScores.map(s => s.term).filter(Boolean))].sort().reverse();
+  const sel = document.getElementById('score-term');
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">全部学期</option>' +
+    terms.map(t => `<option value="${t}">${t}</option>`).join('');
+  if (cur) sel.value = cur;
+}
+
+function filterScores() {
+  const q    = document.getElementById('score-search').value.toLowerCase();
+  const term = document.getElementById('score-term').value;
+  const sort = document.getElementById('score-sort').value;
+
+  let filtered = allScores.filter(s => {
+    if (q    && !(s.course_name||'').toLowerCase().includes(q)) return false;
+    if (term && s.term !== term) return false;
+    return true;
+  });
+
+  filtered.sort((a, b) => {
+    if (sort === 'score_desc') return (b.score || 0) - (a.score || 0);
+    if (sort === 'gp_desc')    return (b.grade_point || 0) - (a.grade_point || 0);
+    if (sort === 'credit_desc')return (b.credit || 0) - (a.credit || 0);
+    // Default: term desc
+    return (b.term||'').localeCompare(a.term||'');
+  });
+
+  const tbody = document.getElementById('scores-table-body');
+  if (filtered.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="7"><div class="empty-state"><div class="icon">🔍</div><h3>无匹配成绩</h3></div></td></tr>`;
+  } else {
+    tbody.innerHTML = filtered.map(renderScoreRow).join('');
+  }
+  document.getElementById('scores-subtitle').textContent = `共 ${filtered.length} 门课程`;
+}
+
+async function refreshScores() {
+  const btn = document.getElementById('btn-refresh-scores');
+  btn.classList.add('loading');
+  btn.innerHTML = '<div class="spinner"></div> 检查中...';
+  try {
+    const d = await api('/api/scores/refresh', 'POST');
+    if (d.success) {
+      toast(`✅ 检查完成，新增 ${d.new_count} 条成绩`, d.new_count > 0 ? 'success' : 'info');
+      await loadScores();
+      await loadStatus();
+      await loadGPA();
+    } else {
+      toast('刷新失败: ' + d.message, 'error');
+    }
+  } catch(e) { toast('网络错误', 'error'); }
+  btn.classList.remove('loading');
+  btn.innerHTML = `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg> 刷新成绩`;
+}
+
+
+function togglePwd(id) {
+  const el = document.getElementById(id);
+  el.type = el.type === 'password' ? 'text' : 'password';
+}
+
+function setTag(id, enabled) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.textContent = enabled ? '✅ 已启用' : '未配置';
+  el.className = 'cfg-tag' + (enabled ? ' enabled' : '');
+}
+
+async function loadSettings() {
+  try {
+    const d = await api('/api/config/all');
+    // Populate form fields
+    document.getElementById('cfg-username').value  = d.imu_username || '';
+    document.getElementById('cfg-password').value  = d.imu_password || '';
+    document.getElementById('cfg-interval').value  = d.check_interval || '10';
+    document.getElementById('cfg-panel-pw').value  = d.panel_password || '';
+
+    document.getElementById('cfg-smtp-host').value = d.email_smtp_host || '';
+    document.getElementById('cfg-smtp-port').value = d.email_smtp_port || '465';
+    document.getElementById('cfg-smtp-ssl').value  = d.email_smtp_ssl || 'true';
+    document.getElementById('cfg-email-from').value= d.email_from || '';
+    document.getElementById('cfg-email-pw').value  = d.email_password || '';
+    document.getElementById('cfg-email-to').value  = d.email_to || '';
+
+    document.getElementById('cfg-sc-key').value    = d.serverchan_key || '';
+    document.getElementById('cfg-tg-token').value  = d.telegram_bot_token || '';
+    document.getElementById('cfg-tg-chatid').value = d.telegram_chat_id || '';
+
+    // Update enable tags
+    const MASK = '••••••••';
+    setTag('tag-email',      !!(d.email_from && d.email_password !== '' && d.email_to));
+    setTag('tag-serverchan', !!(d.serverchan_key && d.serverchan_key !== MASK));
+    setTag('tag-telegram',   !!(d.telegram_bot_token && d.telegram_bot_token !== MASK && d.telegram_chat_id));
+
+    // Account status
+    const hasAccount = !!(d.imu_username && d.imu_password && d.imu_password !== MASK);
+    document.getElementById('account-status').textContent = hasAccount ? '✅ 已填写' : '⚠️ 未填写';
+    document.getElementById('account-status').style.color = hasAccount ? 'var(--accent2)' : 'var(--warn)';
+
+    // Sysinfo
+    const st = await api('/api/status');
+    const elSysTime2 = document.getElementById('sysinfo-time'); if(elSysTime2) elSysTime2.textContent = st.server_time || '—';
+    const elSysScores2 = document.getElementById('sysinfo-scores'); if(elSysScores2) elSysScores2.textContent = (st.score_count || 0) + ' 条';
+    const elSysInterval2 = document.getElementById('sysinfo-interval'); if(elSysInterval2) elSysInterval2.textContent = (d.check_interval || '—') + ' 分钟';
+
+    PANEL_PASSWORD = d.panel_password || '';
+  } catch(e) { toast('加载配置失败', 'error'); }
+}
+
+async function saveSettings() {
+  const btn = document.getElementById('btn-save-config');
+  btn.classList.add('loading');
+  btn.innerHTML = '<div class="spinner"></div> 保存中...';
+
+  const payload = {
+    imu_username:       document.getElementById('cfg-username').value.trim(),
+    imu_password:       document.getElementById('cfg-password').value,
+    check_interval:     document.getElementById('cfg-interval').value.trim(),
+    panel_password:     document.getElementById('cfg-panel-pw').value,
+    email_smtp_host:    document.getElementById('cfg-smtp-host').value.trim(),
+    email_smtp_port:    document.getElementById('cfg-smtp-port').value.trim(),
+    email_smtp_ssl:     document.getElementById('cfg-smtp-ssl').value,
+    email_from:         document.getElementById('cfg-email-from').value.trim(),
+    email_password:     document.getElementById('cfg-email-pw').value,
+    email_to:           document.getElementById('cfg-email-to').value.trim(),
+    serverchan_key:     document.getElementById('cfg-sc-key').value,
+    telegram_bot_token: document.getElementById('cfg-tg-token').value,
+    telegram_chat_id:   document.getElementById('cfg-tg-chatid').value.trim(),
+  };
+
+  // 如果输入框为空，则不发送到后端，保持数据库中原有数值
+  for (const key in payload) {
+    if (payload[key] === '') {
+      delete payload[key];
+    }
+  }
+
+  try {
+    const d = await api('/api/config/save', 'POST', payload);
+    if (d.success) {
+      toast('✅ 配置已保存', 'success');
+      if (d.session_reset) {
+        toast('账号密码已变更，请点击「保存并立即登录」重新登录', 'info');
+      }
+      // Reload to show updated tags & masks
+      await loadSettings();
+    } else {
+      toast('保存失败: ' + d.message, 'error');
+    }
+  } catch(e) { toast('网络错误', 'error'); }
+
+  btn.classList.remove('loading');
+  btn.innerHTML = '<svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg> 保存所有设置';
+}
+
+async function sendTestNotify() {
+  toast('发送测试通知中...', 'info');
+  try {
+    await api('/api/notify/test', 'POST');
+    toast('测试通知已发送，请检查各渠道', 'success');
+  } catch(e) { toast('发送失败', 'error'); }
+}
+
+async function triggerLogin() {
+  const btn = document.getElementById('btn-login');
+  btn.classList.add('loading');
+  btn.innerHTML = '<div class="spinner"></div> 登录中...';
+  toast('正在登录...', 'info');
+  // Save credentials first
+  const payload = {};
+  const user = document.getElementById('cfg-username').value.trim();
+  const pass = document.getElementById('cfg-password').value;
+  if (user !== '') payload.imu_username = user;
+  if (pass !== '') payload.imu_password = pass;
+
+  try {
+    await api('/api/config/save', 'POST', payload);
+    const d = await api('/api/login', 'POST');
+    if (d.success) {
+      toast('登录成功！', 'success');
+      await loadStatus();
+      await loadGPA();
+      await loadSettings();
+    } else {
+      toast('登录失败: ' + d.message, 'error');
+    }
+  } catch(e) { toast('网络错误', 'error'); }
+  btn.classList.remove('loading');
+  btn.innerHTML = '<svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14"/></svg> 保存并立即登录';
+}
+
+// ══════════════════════════════════════════════════════════════
+// Schedule
+// ══════════════════════════════════════════════════════════════
+const DAYS = ['', '周一', '周二', '周三', '周四', '周五', '周六', '周日'];
+const PERIODS = [1,2,3,4,5,6,7,8,9,10,11,12];
+const COLORS = ['c0','c1','c2','c3','c4','c5','c6'];
+
+function renderSchedule(semester, courses) {
+  document.getElementById('schedule-semester').textContent = semester || '未知学期';
+
+  if (!courses || courses.length === 0) {
+    document.getElementById('schedule-container').innerHTML =
+      '<div class="empty-state"><div class="icon">📅</div><h3>暂无课表数据</h3><p>点击"刷新课表"获取</p></div>';
+    return;
+  }
+
+  const colorMap = {};
+  let colorIdx = 0;
+  courses.forEach(c => {
+    if (!colorMap[c.name]) colorMap[c.name] = COLORS[colorIdx++ % COLORS.length];
+  });
+
+  const grid = {};
+  courses.forEach(c => {
+    const periods = (c.periods || '').toString().split(',').map(Number).filter(Boolean);
+    periods.forEach(p => {
+      const key = `${c.weekday}-${p}`;
+      if (!grid[key]) grid[key] = c;
+    });
+  });
+
+  const today = new Date().getDay() || 7;
+
+  let html = `<div class="schedule-grid">`;
+  html += `<div class="sch-period" style="background:var(--surface);"></div>`;
+  for (let d = 1; d <= 7; d++) {
+    html += `<div class="sch-header${d===today?' today':''}">
+      ${DAYS[d]}${d===today ? '<br><span style="font-size:10px;opacity:0.7">今天</span>' : ''}
+    </div>`;
+  }
+
+  // Period rows
+  for (let p = 1; p <= 12; p++) {
+    html += `<div class="sch-period"><span style="font-size:13px;font-weight:600">${p}</span></div>`;
+    for (let d = 1; d <= 7; d++) {
+      const c = grid[`${d}-${p}`];
+      if (c) {
+        const colorCls = colorMap[c.name] || 'c0';
+        html += `<div class="sch-cell">
+          <div class="sch-course ${colorCls}" title="${c.name} · ${c.teacher} · ${c.location}">
+            <div class="sch-course-name">${c.name}</div>
+            <div class="sch-course-loc">${c.location || ''}</div>
+          </div>
+        </div>`;
+      } else {
+        html += `<div class="sch-cell"></div>`;
+      }
+    }
+  }
+
+  html += `</div>`;
+
+  // Course list
+  html += `<div style="margin-top:20px;">
+    <div style="font-size:13px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px;">课程列表</div>
+    <div style="display:flex;flex-wrap:wrap;gap:10px;">
+      ${courses.map(c => `
+        <div style="display:flex;align-items:center;gap:8px;background:var(--surface);
+                    border:1px solid var(--border);border-radius:8px;padding:8px 14px;font-size:13px;">
+          <span style="width:10px;height:10px;border-radius:3px;flex-shrink:0;"
+                class="${colorMap[c.name]}"></span>
+          <strong>${c.name}</strong>
+          <span style="color:var(--muted)">${c.teacher||''}</span>
+          <span style="color:var(--muted);font-size:12px">${c.location||''}</span>
+        </div>`).join('')}
+    </div>
+  </div>`;
+
+  document.getElementById('schedule-container').innerHTML = html;
+}
+
+async function loadSchedule() {
+  try {
+    const d = await api('/api/schedule');
+    renderSchedule(d.semester, d.courses);
+  } catch(e) { toast('加载课表失败', 'error'); }
+}
+
+async function refreshSchedule() {
+  toast('正在刷新课表...', 'info');
+  try {
+    const d = await api('/api/schedule/refresh', 'POST');
+    if (d.success) {
+      renderSchedule(d.semester, d.courses);
+      toast('课表更新成功', 'success');
+    } else {
+      toast('刷新失败: ' + d.message, 'error');
+    }
+  } catch(e) { toast('网络错误', 'error'); }
+}
+
+// ══════════════════════════════════════════════════════════════
+// Logs
+// ══════════════════════════════════════════════════════════════
+async function loadLogs() {
+  try {
+    const d = await api('/api/logs?limit=100');
+    const body = document.getElementById('logs-body');
+    if (!d.logs || d.logs.length === 0) {
+      body.innerHTML = '<div class="empty-state"><div class="icon">📝</div><h3>暂无日志</h3></div>';
+      return;
+    }
+    body.innerHTML = d.logs.map(l => `
+      <div class="log-entry">
+        <span class="log-time">${l.created_at}</span>
+        <span class="log-level ${l.level}">${l.level}</span>
+        <span class="log-msg">${l.message}</span>
+      </div>
+    `).join('');
+  } catch(e) { toast('加载日志失败', 'error'); }
+}
+
+// ══════════════════════════════════════════════════════════════
+// Settings
+// ══════════════════════════════════════════════════════════════
+async function loadSettings() {
+  try {
+    const d = await api('/api/config');
+    const mk = (enabled, desc) => `<span style="color:${enabled?'var(--accent2)':'var(--muted)'};">${enabled?'✅ 已启用':'⭕ 未配置'}</span>`;
+    document.getElementById('set-email-indicator').innerHTML = mk(d.email_enabled);
+    document.getElementById('set-email-desc').textContent = d.email_enabled ? `发送至: ${d.email_to}` : '在 .env 中配置 EMAIL_* 变量';
+    document.getElementById('set-sc-indicator').innerHTML = mk(d.serverchan_enabled);
+    document.getElementById('set-sc-desc').textContent = d.serverchan_enabled ? 'Server酱推送已启用' : '在 .env 中配置 SERVERCHAN_KEY';
+    document.getElementById('set-tg-indicator').innerHTML = mk(d.telegram_enabled);
+    document.getElementById('set-tg-desc').textContent = d.telegram_enabled ? 'Telegram Bot 已启用' : '在 .env 中配置 TELEGRAM_BOT_TOKEN 和 TELEGRAM_CHAT_ID';
+  } catch(e) {}
+}
+
+async function sendTestNotify() {
+  toast('发送测试通知中...', 'info');
+  try {
+    const d = await api('/api/notify/test', 'POST');
+    toast('测试通知已发送，请检查各渠道', 'success');
+  } catch(e) { toast('发送失败', 'error'); }
+}
+
+
+
+// ══════════════════════════════════════════════════════════════
+// Init
+// ══════════════════════════════════════════════════════════════
+async function init() {
+  await loadStatus();
+  await loadGPA();
+  loadScores();  // Also loads recent scores on dashboard
+  // Auto-refresh status every 30s
+  setInterval(loadStatus, 30000);
+}
+
+init();
+</script>
+</body>
+</html>

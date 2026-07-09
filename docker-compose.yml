@@ -1,0 +1,25 @@
+services:
+  imu-spider:
+    image: qinglvsuan/imu-urp-spider:latest
+    build: .
+    container_name: imu-spider
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    volumes:
+      # 持久化 SQLite 数据库（包含所有用户配置与爬取的成绩数据）
+      - ./data:/app/data
+    environment:
+      - PYTHONUNBUFFERED=1
+      - TZ=Asia/Shanghai
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/api/status')"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
