@@ -1409,7 +1409,17 @@ function renderSchedule(semester, courses) {
 
   const grid = {};
   courses.forEach(c => {
-    const periods = (c.periods || '').toString().split(',').map(Number).filter(Boolean);
+    let periods = [];
+    const pStr = (c.periods || '').toString();
+    const match = pStr.match(/(\d+)\s*-\s*(\d+)/);
+    if (match) {
+      const start = parseInt(match[1], 10);
+      const end = Math.min(parseInt(match[2], 10), 12); // max 12 periods
+      for (let i = start; i <= end; i++) periods.push(i);
+    } else {
+      periods = pStr.replace(/[^\d,]/g, '').split(',').map(Number).filter(Boolean);
+    }
+    
     periods.forEach(p => {
       const key = `${c.weekday}-${p}`;
       if (!grid[key]) grid[key] = c;
