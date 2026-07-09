@@ -23,16 +23,29 @@
 
 ## 🐳 Docker 部署（推荐）
 
-强烈建议使用 Docker 部署，环境隔离且更新方便。请确保已安装 [Docker](https://docs.docker.com/engine/install/ubuntu/) 与 Docker Compose。
+本项目镜像已发布至 [DockerHub](https://hub.docker.com/r/qinglvsuan/imu-urp-spider)。强烈建议使用 Docker 部署，环境隔离且更新方便。
 
-### 1. 获取代码
-将本仓库代码 clone 或上传至你的机器：
-```bash
-git clone https://github.com/qinglvsuan/IMU-URP-Spider.git
-cd IMU-URP-Spider
+### 1. 创建配置文件
+在任意空目录下新建一个 `docker-compose.yml` 文件，填入以下内容：
+
+```yaml
+services:
+  imu-spider:
+    image: qinglvsuan/imu-urp-spider:latest
+    container_name: imu-spider
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    volumes:
+      # 持久化 SQLite 数据库（包含所有用户配置与爬取的成绩数据）
+      - ./data:/app/data
+    environment:
+      - PYTHONUNBUFFERED=1
+      - TZ=Asia/Shanghai
 ```
 
 ### 2. 一键启动
+在 `docker-compose.yml` 所在的目录中执行：
 ```bash
 docker compose up -d
 ```
@@ -46,8 +59,9 @@ docker compose up -d
 # 查看运行日志
 docker compose logs -f
 
-# 更新代码后重新构建镜像并启动
-docker compose up -d --build
+# 拉取最新镜像并重启
+docker compose pull
+docker compose up -d
 ```
 
 ---
