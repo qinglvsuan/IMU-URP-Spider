@@ -43,15 +43,18 @@ def check_auth():
     pw = cfg.get("panel_password")
     if not pw:
         return  # 未配置密码，全部放行
-    # 除根路径外，拦截所有 API 和静态资源
-    if request.path == "/":
+        
+    # 默认拦截所有请求，除了根路径和可能的 favicon
+    if request.path == "/" or request.path == "/favicon.ico":
         return
-    if request.path.startswith("/api/") or request.path.startswith("/static/"):
-        token = request.headers.get("X-Panel-Token", "") or request.args.get("token", "")
-        user = request.headers.get("X-Panel-User", "") or request.args.get("user", "")
-        expected_user = cfg.get("panel_username", "")
-        if token != pw or user != expected_user:
-            return jsonify({"error": "Unauthorized"}), 401
+        
+    # 验证 Token 和 User
+    token = request.headers.get("X-Panel-Token", "") or request.args.get("token", "")
+    user = request.headers.get("X-Panel-User", "") or request.args.get("user", "")
+    expected_user = cfg.get("panel_username", "")
+    
+    if token != pw or user != expected_user:
+        return jsonify({"error": "Unauthorized"}), 401
 
 
 # ══════════════════════════════════════════════════════════════

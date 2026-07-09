@@ -1185,7 +1185,7 @@ function populateTermFilter() {
   const sel = document.getElementById('score-term');
   const cur = sel.value;
   sel.innerHTML = '<option value="">全部学期</option>' +
-    terms.map(t => `<option value="${t}">${t}</option>`).join('');
+    terms.map(t => `<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('');
   if (cur) sel.value = cur;
 }
 
@@ -1486,9 +1486,9 @@ async function loadLogs() {
     }
     body.innerHTML = d.logs.map(l => `
       <div class="log-entry">
-        <span class="log-time">${l.created_at}</span>
-        <span class="log-level ${l.level}">${l.level}</span>
-        <span class="log-msg">${l.message}</span>
+        <span class="log-time">${escapeHtml(l.created_at)}</span>
+        <span class="log-level ${escapeHtml(l.level)}">${escapeHtml(l.level)}</span>
+        <span class="log-msg">${escapeHtml(l.message)}</span>
       </div>
     `).join('');
   } catch(e) { toast('加载日志失败', 'error'); }
