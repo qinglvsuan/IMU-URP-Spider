@@ -8,7 +8,7 @@
   <img src="https://img.shields.io/badge/License-WTFPL-purple.svg" alt="License">
 </p>
 
-基于 Python 构建，无需庞大的无头浏览器即可完成 RSA 加密与模拟登录，极低资源占用（内存 < 50MB），非常适合部署在个人闲置的低配 VPS 上。
+基于 Python 构建，无需庞大的无头浏览器即可完成 RSA 加密与模拟登录
 
 借鉴与参考了 [YCITSpider](https://github.com/sinyu1012/YCITSpider) 与 [vscode-jwxt-imu](https://github.com/NiuHK/vscode-jwxt-imu) 的接口思路，针对内大新版教务系统进行了优化重构。
 
