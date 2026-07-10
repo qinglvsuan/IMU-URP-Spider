@@ -481,7 +481,7 @@
     <a class="nav-item" data-page="scores" onclick="showPage('scores')">
       <svg class="icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
       <span class="nav-label">成绩</span>
-      <span class="nav-badge" id="score-badge">0</span>
+      <span class="nav-badge" id="score-badge" style="display: none;">0</span>
     </a>
     <a class="nav-item" data-page="schedule" onclick="showPage('schedule')">
       <svg class="icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
@@ -1076,7 +1076,15 @@ async function loadStatus() {
     const elTime = document.getElementById('last-check'); if(elTime) elTime.textContent = '服务器: ' + data.server_time;
     const elScoreCount = document.getElementById('stat-score-count'); if(elScoreCount) elScoreCount.textContent = data.score_count;
     const elInterval = document.getElementById('stat-interval'); if(elInterval) elInterval.textContent = data.check_interval;
-    const elBadge = document.getElementById('score-badge'); if(elBadge) elBadge.textContent = data.score_count;
+    const elBadge = document.getElementById('score-badge'); 
+    if(elBadge) {
+      if (data.score_count > 0) {
+        elBadge.textContent = data.score_count;
+        elBadge.style.display = 'inline-block';
+      } else {
+        elBadge.style.display = 'none';
+      }
+    }
     const elSysInterval = document.getElementById('sysinfo-interval'); if(elSysInterval) elSysInterval.textContent = data.check_interval + ' 分钟';
     const elSysTime = document.getElementById('sysinfo-time'); if(elSysTime) elSysTime.textContent = data.server_time;
     const elSysScores = document.getElementById('sysinfo-scores'); if(elSysScores) elSysScores.textContent = data.score_count + ' 条';

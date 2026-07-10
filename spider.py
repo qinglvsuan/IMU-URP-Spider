@@ -309,13 +309,25 @@ def fetch_schedule(session) -> dict:
                         time_place = item.get("timeAndPlaceList", [{}])
                         tp = time_place[0] if time_place else {}
                         
+                        start_period = tp.get("classSessions", "")
+                        duration = tp.get("continuingSession", 1)
+                        try:
+                            start_p = int(start_period)
+                            dur = int(duration)
+                            if dur > 1:
+                                periods_str = f"{start_p}-{start_p + dur - 1}节"
+                            else:
+                                periods_str = f"{start_p}节"
+                        except (ValueError, TypeError):
+                            periods_str = f"{start_period}节"
+
                         result["courses"].append({
                             "name": item.get("courseName", ""),
                             "teacher": item.get("attendClassTeacher", "").replace("*", "").strip(),
                             "location": tp.get("teachingBuildingName", "") + tp.get("classroomName", ""),
                             "weeks": tp.get("classWeek", ""),
                             "weekday": int(tp.get("classDay", 0) or 0),
-                            "periods": f"{tp.get('classSessions', '')}节",
+                            "periods": periods_str,
                             "credit": float(item.get("unit", 0) or 0),
                         })
 
