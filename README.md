@@ -9,8 +9,8 @@
 </p>
 
 <p align="center">
-  <img src="assets/preview1.png" width="48%">
-  <img src="assets/preview2.png" width="48%">
+  <img src="assets/preview1-v2.png" width="48%">
+  <img src="assets/preview2-v2.png" width="48%">
 </p>
 
 基于 Python 构建，无需庞大的无头浏览器即可完成 RSA 加密与模拟登录
