@@ -116,10 +116,14 @@ def fetch_gpa(session) -> dict:
 
 def fetch_all_scores(session) -> list:
     """
-    获取所有已通过成绩。
+    抓取所有历年成绩，并使用多种策略（JSON / 网页 HTML）解析。
     返回 list of dict:
       [{course_name, course_code, credit, score, grade_point, term, exam_type}, ...]
     """
+    scores = []
+    token = ""
+    is_callback = False
+    
     try:
         # 先访问成绩页面，从中提取真实数据接口 URL
         resp = session.get(URLS["scores_page"], timeout=15)
@@ -131,40 +135,154 @@ def fetch_all_scores(session) -> list:
             score_api_url = BASE_URL + url_match.group(1)
             logger.info(f"成绩API URL: {score_api_url}")
             
+            # 提取可能存在的 token
+            token_match = re.search(r'/scoreQuery/([^/]+)/allPassingScores', score_api_url)
+            if token_match:
+                token = token_match.group(1)
+            
             # 清华 URP 的 callback 接口一般使用 GET
             if "callback" in score_api_url:
+                is_callback = True
                 api_resp = session.get(score_api_url, headers=JSON_HEADERS, timeout=15)
             else:
                 api_resp = session.post(score_api_url, data={}, headers=JSON_HEADERS, timeout=15)
                 
             api_resp.raise_for_status()
-            return _parse_scores_json(api_resp.json())
+            scores = _parse_scores_json(api_resp.json())
 
-        # 方式2: 直接尝试标准成绩接口
-        for path in [
-            "/jwglxt/cjcx/cjcxDgxqcjList_dcxDgxqcjList.html",
-            "/student/integratedQuery/scoreQuery/allPassingScores/data",
-        ]:
-            try:
-                r = session.post(
-                    BASE_URL + path,
-                    data={"_search": "false", "nd": "", "queryModel.showCount": "1000",
-                          "queryModel.currentPage": "1", "queryModel.sortName": "",
-                          "queryModel.sortOrder": "asc"},
-                    headers=JSON_HEADERS,
-                    timeout=15,
-                )
-                if r.status_code == 200:
-                    return _parse_scores_json(r.json())
-            except Exception:
-                continue
+        # 如果方式1没抓到，尝试方式2
+        if not scores:
+            for path in [
+                "/jwglxt/cjcx/cjcxDgxqcjList_dcxDgxqcjList.html",
+                "/student/integratedQuery/scoreQuery/allPassingScores/data",
+            ]:
+                try:
+                    r = session.post(
+                        BASE_URL + path,
+                        data={"_search": "false", "nd": "", "queryModel.showCount": "1000",
+                              "queryModel.currentPage": "1", "queryModel.sortName": "",
+                              "queryModel.sortOrder": "asc"},
+                        headers=JSON_HEADERS,
+                        timeout=15,
+                    )
+                    logger.info(f"全量成绩 响应截断: {r.text[:500]}")
+                    data = r.json()
+                    items_to_dump = []
+                    if isinstance(data, list):
+                        items_to_dump = data
+                    elif isinstance(data, dict):
+                        items_to_dump = data.get("items", data.get("list", []))
+                    if items_to_dump and len(items_to_dump) > 0:
+                        import json
+                        with open("/app/data/raw_item.json", "w", encoding="utf-8") as f:
+                            json.dump(items_to_dump[0], f, ensure_ascii=False, indent=2)
+                        logger.info(f"已写入 RAW ITEM 到 /app/data/raw_item.json")
+                    scores = _parse_scores_json(data)
+                    if scores: break
+                except Exception:
+                    continue
 
-        # 方式3: 从 HTML 表格中解析
-        return _parse_scores_html(resp.text)
+        # 如果前两种都没抓到，尝试方式3从HTML解析
+        if not scores:
+            scores = _parse_scores_html(resp.text)
 
     except Exception as ex:
-        logger.error(f"获取成绩失败: {ex}")
-        return []
+        logger.error(f"获取历年成绩失败: {ex}")
+        
+    # --- 抓取本学期成绩，提取平均分/最高分/最低分并合并 ---
+    try:
+        logger.info(f"准备获取本学期成绩")
+        this_term_extras = fetch_this_term_scores(session)
+        if this_term_extras and scores:
+            for s in scores:
+                c_code = s.get("course_code")
+                if c_code in this_term_extras:
+                    extra = this_term_extras[c_code]
+                    s["avg_score"] = extra.get("avg_score")
+                    s["max_score"] = extra.get("max_score")
+                    s["min_score"] = extra.get("min_score")
+                    logger.info(f"成功合并高阶数据: {s['course_name']} - 平均分: {s.get('avg_score')}")
+    except Exception as ex:
+        logger.error(f"获取本学期高阶成绩数据失败: {ex}")
+        
+    return scores
+
+def fetch_this_term_scores(session) -> dict:
+    """
+    抓取本学期成绩，返回 course_code -> {avg_score, max_score, min_score} 的字典。
+    """
+    try:
+        # 首先访问本学期成绩的 index 页面以获取专用的 token 和 API 地址
+        index_url = BASE_URL + "/student/integratedQuery/scoreQuery/thisTermScores/index"
+        r_page = session.get(index_url, timeout=15)
+        
+        # 兼容两种常见跳转模式：1. url 里直接带 token，2. js 里定义 url
+        import re
+        url_match = re.search(r'var\s+url\s*=\s*[\"\']([^\"\']+)[\"\']', r_page.text)
+        
+        if not url_match:
+            logger.warning("未能从 thisTermScores/index 页面提取出数据接口 URL")
+            return {}
+            
+        api_url = BASE_URL + url_match.group(1)
+        # 根据 URP 常见设计，补充 Referer 防护
+        headers = JSON_HEADERS.copy()
+        headers["Referer"] = r_page.url
+        
+        payload = {
+            "_search": "false", "nd": "", "queryModel.showCount": "1000",
+            "queryModel.currentPage": "1", "queryModel.sortName": "", "queryModel.sortOrder": "asc"
+        }
+        
+        logger.info(f"准备请求本学期成绩数据 API: {api_url}")
+        
+        # URP 有时用 GET，有时用 POST
+        r = session.post(api_url, data=payload, headers=headers, timeout=15)
+        if r.status_code == 405 or "非法请求" in r.text:
+            r = session.get(api_url, headers=headers, timeout=15)
+            
+        logger.info(f"thisTermScores 请求状态: {r.status_code}")
+        if r.status_code == 200:
+            logger.info(f"thisTermScores 响应截断: {r.text[:200]}")
+            data = r.json()
+            items = []
+            if isinstance(data, list):
+                # 如果是 [{"state":"1","list":[{...}]}]
+                if len(data) > 0 and isinstance(data[0], dict) and "list" in data[0]:
+                    items = data[0]["list"]
+                else:
+                    items = data
+            elif isinstance(data, dict):
+                for key in ["items", "rows", "list", "data", "datas", "cjList"]:
+                    if key in data and isinstance(data[key], list):
+                        items = data[key]
+                        break
+            
+            extras = {}
+            for item in items:
+                if not isinstance(item, dict): continue
+                
+                # URP 通用课程号解析
+                item_id = item.get("id", {})
+                course_code = item.get("kch", item.get("courseCode", item_id.get("courseNumber", item.get("kch_id", ""))))
+                if not course_code: continue
+                
+                # 解析高阶数据
+                avg_score = item.get("avgcj", item.get("avgScore", item.get("averageScore", item.get("courseAvg", item.get("pjf", None)))))
+                max_score = item.get("maxcj", item.get("maxScore", item.get("highestScore", item.get("courseMax", item.get("zgf", None)))))
+                min_score = item.get("mincj", item.get("minScore", item.get("lowestScore", item.get("courseMin", item.get("zdf", None)))))
+                
+                extras[course_code] = {
+                    "avg_score": float(avg_score) if avg_score not in (None, "") else None,
+                    "max_score": float(max_score) if max_score not in (None, "") else None,
+                    "min_score": float(min_score) if min_score not in (None, "") else None,
+                }
+            if extras:
+                return extras
+    except Exception as ex:
+        logger.warning(f"获取 thisTermScores 异常: {ex}")
+    return {}
+
 
 
 def _parse_scores_json(data) -> list:

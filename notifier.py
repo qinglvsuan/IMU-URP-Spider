@@ -134,23 +134,44 @@ def notify_new_scores(new_scores: list, student_name: str = ""):
     # ── 构造消息内容 ─────────────────────────────────────────
     score_lines = []
     for s in new_scores:
-        score_str = s.get("score_raw") or str(s.get("score", ""))
-        gp = s.get("grade_point", 0)
-        line = f"• {s.get('course_name', '未知课程')}：{score_str}"
+        course_name = s.get("course_name", "")
+        score_val = s.get("score_raw") or s.get("score", "")
+        gp = s.get("grade_point")
+        
+        line = f"• {course_name}: {score_val}"
         if gp:
             line += f"（绩点 {gp}）"
+            
+        avg = s.get("avg_score")
+        max_s = s.get("max_score")
+        min_s = s.get("min_score")
+        if avg is not None:
+            line += f"\n  └─ 全班平均: {avg} | 最高分: {max_s} | 最低分: {min_s}"
+            
         score_lines.append(line)
 
     plain_body = f"📊 新增 {count} 门成绩{name_tag}：\n\n" + "\n".join(score_lines)
     telegram_body = f"📊 *新增成绩提醒*{name_tag}\n\n" + "\n".join(score_lines)
 
     # ── HTML 邮件模板 ─────────────────────────────────────────
-    rows_html = "".join(
-        f"""
+    rows_html = ""
+    for s in new_scores:
+        extra_html = ""
+        if s.get("avg_score") is not None:
+            extra_html = f"""
+            <tr style="background-color:#161b22;border-bottom:1px solid #2d2d2d;">
+              <td colspan="5" style="padding:4px 12px 12px;font-size:12px;color:#8b949e;text-align:left;">
+                └─ 全班平均: <strong style="color:#c9d1d9;">{s.get('avg_score')}</strong> &nbsp;|&nbsp; 
+                最高分: <strong style="color:#c9d1d9;">{s.get('max_score')}</strong> &nbsp;|&nbsp; 
+                最低分: <strong style="color:#c9d1d9;">{s.get('min_score')}</strong>
+              </td>
+            </tr>
+            """
+        
+        rows_html += f"""
         <tr>
           <td style="padding:8px 12px;border-bottom:1px solid #2d2d2d;">{s.get('course_name','')}</td>
-          <td style="padding:8px 12px;border-bottom:1px solid #2d2d2d;text-align:center;
-                     font-weight:bold;color:#7ee787;">
+          <td style="padding:8px 12px;border-bottom:1px solid #2d2d2d;text-align:center;font-weight:bold;color:#7ee787;">
             {s.get('score_raw') or s.get('score','')}
           </td>
           <td style="padding:8px 12px;border-bottom:1px solid #2d2d2d;text-align:center;">
@@ -163,9 +184,8 @@ def notify_new_scores(new_scores: list, student_name: str = ""):
             {s.get('term','')}
           </td>
         </tr>
+        {extra_html}
         """
-        for s in new_scores
-    )
 
     email_html = f"""
     <!DOCTYPE html>

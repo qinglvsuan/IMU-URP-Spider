@@ -35,6 +35,9 @@ def init_db():
                 term        TEXT,
                 exam_type   TEXT,
                 course_nature TEXT,
+                avg_score   REAL,
+                max_score   REAL,
+                min_score   REAL,
                 created_at  TEXT DEFAULT (datetime('now', 'localtime')),
                 UNIQUE(course_code, term)
             );
@@ -76,31 +79,48 @@ def upsert_scores(scores: list) -> list:
     new_scores = []
     with get_conn() as conn:
         for s in scores:
+            course_code = s.get("course_code", "")
+            term = s.get("term", "")
+            
+            # 检查是否是新成绩
+            row = conn.execute(
+                "SELECT id FROM scores WHERE course_code = ? AND term = ?",
+                (course_code, term)
+            ).fetchone()
+            is_new = (row is None)
+            
             try:
-                cursor = conn.execute(
+                conn.execute(
                     """
                     INSERT INTO scores
                         (course_code, course_name, credit, score, score_raw,
-                         grade_point, term, exam_type, course_nature)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                         grade_point, term, exam_type, course_nature, avg_score, max_score, min_score)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ON CONFLICT(course_code, term) DO UPDATE SET
+                        avg_score = COALESCE(excluded.avg_score, avg_score),
+                        max_score = COALESCE(excluded.max_score, max_score),
+                        min_score = COALESCE(excluded.min_score, min_score)
                     """,
                     (
-                        s.get("course_code", ""),
+                        course_code,
                         s.get("course_name", ""),
                         s.get("credit", 0),
                         s.get("score"),
                         s.get("score_raw", ""),
                         s.get("grade_point", 0),
-                        s.get("term", ""),
+                        term,
                         s.get("exam_type", ""),
                         s.get("course_nature", ""),
+                        s.get("avg_score"),
+                        s.get("max_score"),
+                        s.get("min_score"),
                     ),
                 )
-                if cursor.lastrowid:
+                if is_new:
                     new_scores.append(s)
-            except sqlite3.IntegrityError:
-                # 记录已存在，跳过
-                pass
+            except sqlite3.Error as e:
+                logger.error(f"Failed to upsert score: {e}")
+                
     return new_scores
 
 

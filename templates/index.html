@@ -456,9 +456,45 @@
 
     /* ── Responsive ───────────────────────────────────── */
     @media (max-width: 768px) {
-      .sidebar { transform: translateX(-100%); transition: transform 0.3s; }
-      .sidebar.open { transform: translateX(0); }
-      .main-content { margin-left: 0; padding: 16px; }
+      .sidebar {
+        transform: none;
+        top: auto;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        width: 100%;
+        height: auto;
+        flex-direction: row;
+        padding: 0;
+        border-right: none;
+        border-top: 1px solid var(--border);
+        z-index: 1000;
+        background: var(--surface);
+      }
+      .brand { display: none; }
+      .sidebar-footer { display: none; }
+      nav {
+        display: flex;
+        flex-direction: row;
+        justify-content: space-around;
+        padding: 8px 4px;
+        width: 100%;
+      }
+      .nav-item {
+        position: relative;
+        flex-direction: column;
+        gap: 4px;
+        padding: 4px 8px;
+        margin-bottom: 0;
+        background: transparent !important;
+      }
+      .nav-item.active { color: var(--accent); }
+      .nav-item .icon { width: 22px; height: 22px; margin: 0 auto; }
+      .nav-label { font-size: 11px; text-align: center; }
+      .nav-badge { position: absolute; top: 0; right: 8px; transform: scale(0.8); }
+      .nav-item[style*="margin-top: auto"] { margin-top: 0 !important; }
+      
+      .main-content { margin-left: 0; padding: 16px; padding-bottom: 80px; }
       .stats-grid { grid-template-columns: 1fr 1fr; }
     }
   </style>
@@ -654,13 +690,13 @@
       <div style="overflow-x:auto;">
         <table>
           <thead>
-            <tr>
               <th>课程名称</th>
               <th>成绩</th>
               <th>绩点</th>
               <th>学分</th>
               <th>考核方式</th>
               <th>课程性质</th>
+              <th>班级情况</th>
               <th>学期</th>
             </tr>
           </thead>
@@ -1146,6 +1182,17 @@ function scoreBadgeClass(score, raw) {
 function renderScoreRow(s) {
   const cls = scoreBadgeClass(s.score, s.score_raw);
   const display = escapeHtml(s.score_raw || s.score || '—');
+  
+  let classStats = '—';
+  if (s.avg_score !== undefined && s.avg_score !== null) {
+      classStats = `
+        <div style="line-height:1.4">
+          <div>平均 <span style="color:var(--accent);font-weight:600">${s.avg_score}</span></div>
+          <div style="font-size:11px;color:var(--muted)">高 ${s.max_score} | 低 ${s.min_score}</div>
+        </div>
+      `;
+  }
+  
   return `<tr>
     <td style="font-weight:500">${escapeHtml(s.course_name || '—')}</td>
     <td><span class="score-badge ${cls}">${display}</span></td>
@@ -1157,6 +1204,7 @@ function renderScoreRow(s) {
     <td>${escapeHtml(s.credit || '—')}</td>
     <td style="color:var(--muted);font-size:12px">${escapeHtml(s.exam_type || '—')}</td>
     <td style="color:var(--muted);font-size:12px">${escapeHtml(s.course_nature || '—')}</td>
+    <td style="font-size:12px">${classStats}</td>
     <td style="color:var(--muted);font-size:12px;font-family:'JetBrains Mono',monospace">${escapeHtml(s.term || '—')}</td>
   </tr>`;
 }
@@ -1185,14 +1233,21 @@ async function loadScores() {
     if (recent.length) {
       recBody.innerHTML = `<table style="width:100%">
         <thead><tr>
-          <th>课程名称</th><th>成绩</th><th>绩点</th><th>学期</th>
+          <th>课程名称</th><th>成绩</th><th>绩点</th><th>班级情况</th><th>学期</th>
         </tr></thead>
         <tbody>${recent.map(s => {
           const cls = scoreBadgeClass(s.score, s.score_raw);
+          
+          let classStats = '—';
+          if (s.avg_score !== undefined && s.avg_score !== null) {
+              classStats = `<span style="color:var(--muted);font-size:11px">均 ${s.avg_score} | 高 ${s.max_score} | 低 ${s.min_score}</span>`;
+          }
+          
           return `<tr>
             <td style="font-weight:500">${escapeHtml(s.course_name||'—')}</td>
             <td><span class="score-badge ${cls}">${escapeHtml(s.score_raw||s.score||'—')}</span></td>
             <td style="font-family:'JetBrains Mono',monospace;font-size:13px">${escapeHtml(s.grade_point||'—')}</td>
+            <td>${classStats}</td>
             <td style="color:var(--muted);font-size:12px">${escapeHtml(s.term||'—')}</td>
           </tr>`;
         }).join('')}</tbody>
