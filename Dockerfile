@@ -18,8 +18,6 @@ RUN find /ocr/site-packages -type d -name "tests"      -exec rm -rf {} + 2>/dev/
     find /ocr/site-packages -name "*.pyo"  -delete && \
     find /ocr/site-packages -name "*.dist-info" -type d -exec rm -rf {} + 2>/dev/null || true && \
     find /ocr/site-packages -name "*.pyi"  -delete && \
-    # 删除 ddddocr 内置的旧版废弃模型（节省 13MB，识别时不使用）
-    rm -f /ocr/site-packages/ddddocr/common_old.onnx && \
     # strip 所有 .so 共享库的调试符号（通常能减小 30-50%）
     find /ocr/site-packages -name "*.so*"  -exec strip --strip-unneeded {} \; 2>/dev/null || true && \
     find /ocr/site-packages -name "*.so.*" -exec strip --strip-unneeded {} \; 2>/dev/null || true
