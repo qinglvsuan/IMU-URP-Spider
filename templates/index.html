@@ -957,13 +957,30 @@
   </div>
 </div>
 
-<!-- ── Setup Overlay ──────────────────────────────── -->
+<!-- ── Panel Setup Overlay (Mandatory first step) ── -->
+<div class="overlay" id="panel-setup-overlay">
+  <div class="overlay-card">
+    <div class="icon" style="font-size:40px;margin-bottom:20px;">🛡️</div>
+    <h2>初始化：设置面板密码</h2>
+    <p>为了保护您的隐私和数据安全，请务必设置一个控制面板的访问密码。设置后，只有持有此密码的人才能访问此监控系统。</p>
+    <div class="input-group">
+      <input type="text" id="setup-panel-user" placeholder="面板账号 (可留空，默认为空)">
+    </div>
+    <div class="input-group">
+      <input type="password" id="setup-panel-pwd" placeholder="设置面板密码 (必填)" onkeypress="if(event.key==='Enter') submitPanelSetup()">
+    </div>
+    <button class="btn btn-primary" style="width:100%; justify-content:center" onclick="submitPanelSetup()">保存并继续</button>
+  </div>
+</div>
+
+<!-- ── Setup Overlay (IMU Credentials) ── -->
 <div class="overlay" id="setup-overlay">
   <div class="overlay-card">
     <div class="icon" style="font-size:40px;margin-bottom:20px;">✨</div>
     <h2>欢迎使用教务监控</h2>
     <p>初次见面！您似乎还没有配置教务系统的账号密码。请先进入设置页面完成初始化配置，以便系统能为您抓取成绩。</p>
     <button class="btn btn-primary" style="width:100%; justify-content:center" onclick="goToSetup()">立即配置</button>
+    <button class="btn btn-secondary" style="width:100%; justify-content:center; margin-top:10px; background:transparent; border:none; color:var(--muted)" onclick="document.getElementById('setup-overlay').style.display='none'">稍后配置</button>
   </div>
 </div>
 
@@ -997,6 +1014,7 @@
 // State
 // ══════════════════════════════════════════════════════════════
 let allScores = [];
+let hasShownIMUSetup = false;
 
 // ── Overlay Actions ──
 function submitAuth() {
@@ -1006,6 +1024,30 @@ function submitAuth() {
   localStorage.setItem('panel_user', user);
   localStorage.setItem('panel_token', pwd);
   location.reload();
+}
+
+async function submitPanelSetup() {
+  const user = document.getElementById('setup-panel-user').value.trim();
+  const pwd = document.getElementById('setup-panel-pwd').value;
+  if (!pwd) return toast('必须设置面板密码', 'error');
+  
+  try {
+    const res = await api('/api/config/save', 'POST', {
+      panel_username: user,
+      panel_password: pwd
+    });
+    if (res.success) {
+      toast('面板密码设置成功！', 'success');
+      localStorage.setItem('panel_user', user);
+      localStorage.setItem('panel_token', pwd);
+      document.getElementById('panel-setup-overlay').style.display = 'none';
+      setTimeout(() => location.reload(), 1000);
+    } else {
+      toast(res.message || '设置失败', 'error');
+    }
+  } catch (e) {
+    toast('网络错误: ' + e.message, 'error');
+  }
 }
 
 function goToSetup() {
@@ -1095,9 +1137,21 @@ function toast(msg, type = 'info') {
 async function loadStatus() {
   try {
     const data = await api('/api/status');
-    if (data.setup_required) {
-      document.getElementById('setup-overlay').style.display = 'flex';
+    
+    // 面板密码未设置时，强制弹窗要求设置
+    if (data.panel_setup_required) {
+      document.getElementById('panel-setup-overlay').style.display = 'flex';
+      return; // 拦截后续逻辑，直到设置完成
+    } else {
+      document.getElementById('panel-setup-overlay').style.display = 'none';
     }
+
+    // 教务密码未设置时，仅在首次加载时提醒一次
+    if (data.setup_required && !hasShownIMUSetup) {
+      document.getElementById('setup-overlay').style.display = 'flex';
+      hasShownIMUSetup = true;
+    }
+
     const dot  = document.getElementById('status-dot');
     const text = document.getElementById('status-text');
 
