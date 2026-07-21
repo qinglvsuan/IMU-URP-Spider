@@ -1,55 +1,62 @@
 # ═══════════════════════════════════════════════════════════════
-# Stage 1: 构建 OCR 专属依赖（ddddocr + opencv + onnxruntime）
+# Stage 1 (ocr-deps): 安装并裁剪 OCR 重型依赖
 # ═══════════════════════════════════════════════════════════════
 FROM python:3.12-slim AS ocr-deps
 
-WORKDIR /ocr
-
-# 安装 OCR 所需的系统库
 RUN apt-get update -qq && \
-    apt-get install -y --no-install-recommends libgomp1 && \
+    apt-get install -y --no-install-recommends binutils && \
     rm -rf /var/lib/apt/lists/*
 
-# 将 OCR 依赖安装到独立路径，不污染主镜像的 site-packages
-RUN pip install --no-cache-dir \
-        ddddocr==1.6.1 \
-    --target /ocr/site-packages
+# 安装 OCR 依赖到独立目录
+RUN pip install --no-cache-dir ddddocr==1.6.1 --target /ocr/site-packages
 
+# ── 激进裁剪：删除一切不需要的文件 ──
+RUN find /ocr/site-packages -type d -name "tests"      -exec rm -rf {} + 2>/dev/null || true && \
+    find /ocr/site-packages -type d -name "test"       -exec rm -rf {} + 2>/dev/null || true && \
+    find /ocr/site-packages -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true && \
+    find /ocr/site-packages -name "*.pyc"  -delete && \
+    find /ocr/site-packages -name "*.pyo"  -delete && \
+    find /ocr/site-packages -name "*.dist-info" -type d -exec rm -rf {} + 2>/dev/null || true && \
+    find /ocr/site-packages -name "*.pyi"  -delete && \
+    # 删除 ddddocr 内置的旧版废弃模型（节省 13MB，识别时不使用）
+    rm -f /ocr/site-packages/ddddocr/common_old.onnx && \
+    # strip 所有 .so 共享库的调试符号（通常能减小 30-50%）
+    find /ocr/site-packages -name "*.so*"  -exec strip --strip-unneeded {} \; 2>/dev/null || true && \
+    find /ocr/site-packages -name "*.so.*" -exec strip --strip-unneeded {} \; 2>/dev/null || true
 
 # ═══════════════════════════════════════════════════════════════
-# Stage 2: 主应用镜像（精简版，不包含 OCR 重量级依赖）
+# Stage 2: 主应用镜像（精简版）
 # ═══════════════════════════════════════════════════════════════
 FROM python:3.12-slim
 
 WORKDIR /app
 
-# 安装主应用所需的系统库（lxml 依赖）
+# 安装系统依赖（lxml 需要 libxml2；OCR .so 需要 libgomp）
 RUN apt-get update -qq && \
     apt-get install -y --no-install-recommends libxml2 libxslt1.1 libgomp1 && \
     rm -rf /var/lib/apt/lists/*
 
-# 先复制主依赖文件，利用 Docker 层缓存
+# 安装主应用依赖（无 OCR）
 COPY requirements-main.txt .
-RUN pip install --no-cache-dir -r requirements-main.txt
+RUN pip install --no-cache-dir -r requirements-main.txt && \
+    # 删除 pip 本身（运行时不需要，节省 ~12MB）
+    pip uninstall -y pip && \
+    find /usr/local/lib -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true && \
+    find /usr/local/lib -name "*.pyc" -delete
 
-# 从 Stage 1 中拷贝 OCR 依赖到隔离路径
+# 从 Stage 1 拷贝裁剪后的 OCR 依赖
 COPY --from=ocr-deps /ocr/site-packages /app/ocr_packages
 
 # 复制源代码
 COPY . .
 
-# 创建数据目录（SQLite 存放位置）
 RUN mkdir -p /app/data
 
-# 挂载点：data 目录在容器外持久化
 VOLUME ["/app/data"]
-
 EXPOSE 5000
 
-# 限制 glibc 内存分配策略，极大降低多线程环境下的内存占用
 ENV MALLOC_ARENA_MAX=1
 ENV PYTHONUNBUFFERED=1
-# ocr_worker.py 专属 Python 路径（只有它能看到 OCR 包）
 ENV OCR_PYTHONPATH=/app/ocr_packages
 
 CMD ["python3", "app.py"]
