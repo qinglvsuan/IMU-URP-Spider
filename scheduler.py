@@ -61,6 +61,7 @@ def check_scores():
     if not session:
         return
 
+    import gc
     try:
         # 获取最新成绩
         scores = spider.fetch_all_scores(session)
@@ -96,6 +97,8 @@ def check_scores():
     except Exception as ex:
         logger.error(f"成绩检查出错: {ex}")
         db.add_log("ERROR", f"成绩检查出错: {ex}")
+    finally:
+        gc.collect()
 
 
 def refresh_all_data():

@@ -88,9 +88,13 @@ def login(username: str, password: str) -> requests.Session:
         
         if c_resp.status_code == 200 and len(c_resp.content) > 100:
             import ddddocr
+            import gc
             ocr = ddddocr.DdddOcr(show_ad=False)
             captcha_code = ocr.classification(c_resp.content)
             logger.info(f"✅ 验证码识别结果: {captcha_code}")
+            # 显式释放 ONNX 模型占用的内存
+            del ocr
+            gc.collect()
         else:
             logger.warning("验证码图片获取失败或为空")
     except Exception as ex:
