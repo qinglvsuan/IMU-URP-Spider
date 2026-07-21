@@ -87,18 +87,32 @@ def login(username: str, password: str) -> requests.Session:
         c_resp = session.get(c_url, timeout=10, headers={"Referer": LOGIN_URL})
         
         if c_resp.status_code == 200 and len(c_resp.content) > 100:
-            import ddddocr
-            import gc
-            ocr = ddddocr.DdddOcr(show_ad=False)
-            captcha_code = ocr.classification(c_resp.content)
-            logger.info(f"✅ 验证码识别结果: {captcha_code}")
-            # 显式释放 ONNX 模型占用的内存
-            del ocr
-            gc.collect()
+            # ── 子进程隔离 OCR ──────────────────────────────────────
+            # 将 ddddocr 放入独立子进程运行，避免 ONNX Runtime 的 C++ 层
+            # 常驻主进程内存（单次加载约 40MB），识别后子进程退出即彻底释放。
+            import subprocess
+            import base64
+            import sys
+
+            img_b64 = base64.b64encode(c_resp.content).decode("ascii")
+            try:
+                proc = subprocess.run(
+                    [sys.executable, "ocr_worker.py", img_b64],
+                    capture_output=True,
+                    text=True,
+                    timeout=30,
+                )
+                captcha_code = proc.stdout.strip()
+                logger.info(f"✅ 验证码识别结果: {captcha_code}")
+            except subprocess.TimeoutExpired:
+                logger.warning("OCR 子进程超时")
+            except Exception as e:
+                logger.warning(f"OCR 子进程异常: {e}")
         else:
             logger.warning("验证码图片获取失败或为空")
     except Exception as ex:
         logger.error(f"验证码处理异常: {ex}")
+
 
     # ── Step 3: 加密密码并提交表单 ───────────────────────────────
     encrypted_pwd = _urp_encrypt_password(password)
