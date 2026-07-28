@@ -67,6 +67,18 @@ def init_db():
                 value TEXT
             );
         """)
+        # 自动迁移检查：补全旧版本 SQLite 缺失的列
+        cursor = conn.cursor()
+        cursor.execute("PRAGMA table_info(scores)")
+        existing_cols = [row[1] for row in cursor.fetchall()]
+        for col, col_type in [("avg_score", "REAL"), ("max_score", "REAL"), ("min_score", "REAL")]:
+            if col not in existing_cols:
+                try:
+                    conn.execute(f"ALTER TABLE scores ADD COLUMN {col} {col_type}")
+                    logger.info(f"✅ 数据库迁移：为 scores 表新增 {col} 字段")
+                except Exception as e:
+                    logger.error(f"迁移 {col} 字段失败: {e}")
+
     logger.info("数据库初始化完成")
 
 
