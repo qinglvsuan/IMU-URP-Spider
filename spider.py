@@ -140,12 +140,16 @@ def fetch_all_scores(session) -> list:
             if token_match:
                 token = token_match.group(1)
             
+            # 补充 Referer 请求头（部分网络环境和代理下 URP 要求校验 Referer）
+            headers = JSON_HEADERS.copy()
+            headers["Referer"] = resp.url
+            
             # 清华 URP 的 callback 接口一般使用 GET
             if "callback" in score_api_url:
                 is_callback = True
-                api_resp = session.get(score_api_url, headers=JSON_HEADERS, timeout=15)
+                api_resp = session.get(score_api_url, headers=headers, timeout=15)
             else:
-                api_resp = session.post(score_api_url, data={}, headers=JSON_HEADERS, timeout=15)
+                api_resp = session.post(score_api_url, data={}, headers=headers, timeout=15)
                 
             api_resp.raise_for_status()
             scores = _parse_scores_json(api_resp.json())

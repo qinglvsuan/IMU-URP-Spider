@@ -97,6 +97,13 @@ def upsert_scores(scores: list) -> list:
                          grade_point, term, exam_type, course_nature, avg_score, max_score, min_score)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     ON CONFLICT(course_code, term) DO UPDATE SET
+                        course_name = COALESCE(excluded.course_name, course_name),
+                        credit = COALESCE(excluded.credit, credit),
+                        score = COALESCE(excluded.score, score),
+                        score_raw = COALESCE(excluded.score_raw, score_raw),
+                        grade_point = COALESCE(excluded.grade_point, grade_point),
+                        exam_type = COALESCE(excluded.exam_type, exam_type),
+                        course_nature = COALESCE(excluded.course_nature, course_nature),
                         avg_score = COALESCE(excluded.avg_score, avg_score),
                         max_score = COALESCE(excluded.max_score, max_score),
                         min_score = COALESCE(excluded.min_score, min_score)
