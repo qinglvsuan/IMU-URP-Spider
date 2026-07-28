@@ -52,100 +52,96 @@ def create_session() -> requests.Session:
     return s
 
 
-def login(username: str, password: str, max_retries: int = 4) -> requests.Session:
+def login(username: str, password: str) -> requests.Session:
     """
     登录清华 URP 系统。
     流程：
     1. GET /login 获取页面 tokenValue
     2. GET /img/captcha.jpg 获取验证码并用 ddddocr 识别
     3. POST /j_spring_security_check 进行登录
-    包含验证码自动重试机制（最多 max_retries 次）。
     """
-    for attempt in range(1, max_retries + 1):
-        session = create_session()
+    session = create_session()
 
-        # ── Step 1: 获取登录页，提取 CSRF (tokenValue) ──────────────
-        try:
-            logger.info(f"访问登录页 (尝试 {attempt}/{max_retries}): {LOGIN_URL}")
-            resp = session.get(LOGIN_URL, timeout=15)
-            resp.raise_for_status()
-        except Exception as ex:
-            if attempt == max_retries:
-                raise RuntimeError(f"无法访问教务系统登录页面: {ex}")
-            continue
+    # ── Step 1: 获取登录页，提取 CSRF (tokenValue) ──────────────
+    try:
+        logger.info(f"访问登录页: {LOGIN_URL}")
+        resp = session.get(LOGIN_URL, timeout=15)
+        resp.raise_for_status()
+    except Exception as ex:
+        raise RuntimeError(f"无法访问教务系统登录页面: {ex}")
 
-        soup = BeautifulSoup(resp.text, "lxml")
-        token_input = soup.find("input", id="tokenValue")
-        token_value = token_input.get("value", "") if token_input else ""
+    soup = BeautifulSoup(resp.text, "lxml")
+    token_input = soup.find("input", id="tokenValue")
+    token_value = token_input.get("value", "") if token_input else ""
+    if not token_value:
+        logger.warning("未能在页面上找到 tokenValue，可能会登录失败")
 
-        # ── Step 2: 获取并识别验证码 ─────────────────────────────────
-        captcha_code = ""
-        try:
-            import time
-            c_url = f"{CAPTCHA_URL}?_={int(time.time()*1000)}"
-            c_resp = session.get(c_url, timeout=10, headers={"Referer": LOGIN_URL})
-            
-            if c_resp.status_code == 200 and len(c_resp.content) > 100:
-                import subprocess
-                import base64
-                import sys
-
-                img_b64 = base64.b64encode(c_resp.content).decode("ascii")
-                try:
-                    proc = subprocess.run(
-                        [sys.executable, "ocr_worker.py", img_b64],
-                        capture_output=True,
-                        text=True,
-                        timeout=30,
-                    )
-                    captcha_code = proc.stdout.strip()
-                    logger.info(f"✅ 验证码识别结果: {captcha_code}")
-                except Exception as e:
-                    logger.warning(f"OCR 子进程异常: {e}")
-        except Exception as ex:
-            logger.error(f"验证码处理异常: {ex}")
-
-        # ── Step 3: 加密密码并提交表单 ───────────────────────────────
-        encrypted_pwd = _urp_encrypt_password(password)
-        form_data = {
-            "j_username": username,
-            "j_password": encrypted_pwd,
-            "j_captcha": captcha_code,
-            "tokenValue": token_value,
-            "lang": "zh"
-        }
-
-        try:
-            login_resp = session.post(
-                LOGIN_ACTION,
-                data=form_data,
-                headers={
-                    "Referer": LOGIN_URL,
-                    "Content-Type": "application/x-www-form-urlencoded",
-                },
-                allow_redirects=True,
-                timeout=20,
-            )
-        except Exception as ex:
-            if attempt == max_retries:
-                raise RuntimeError(f"登录请求失败: {ex}")
-            continue
-
-        # ── Step 4: 判断登录结果 ─────────────────────────────────────
-        resp_text = login_resp.text
+    # ── Step 2: 获取并识别验证码 ─────────────────────────────────
+    captcha_code = ""
+    try:
+        logger.info(f"获取验证码: {CAPTCHA_URL}")
+        import time
+        c_url = f"{CAPTCHA_URL}?_={int(time.time()*1000)}"
+        c_resp = session.get(c_url, timeout=10, headers={"Referer": LOGIN_URL})
         
-        if "errorCode=badCaptcha" in login_resp.url or "验证码错误" in resp_text:
-            logger.warning(f"⚠️ 验证码识别错误 (尝试 {attempt}/{max_retries})，自动重试...")
-            if attempt == max_retries:
-                raise RuntimeError("验证码多次识别错误，请稍后重试")
-            continue
-            
-        if "errorCode=badCredentials" in login_resp.url or "密码错误" in resp_text or "用户名或密码" in resp_text:
-            raise RuntimeError("账号或密码错误")
-        
-        if "j_username" not in resp_text and "j_password" not in resp_text:
-            logger.info("✅ 登录成功！")
-            return session
+        if c_resp.status_code == 200 and len(c_resp.content) > 100:
+            import subprocess
+            import base64
+            import sys
+
+            img_b64 = base64.b64encode(c_resp.content).decode("ascii")
+            try:
+                proc = subprocess.run(
+                    [sys.executable, "ocr_worker.py", img_b64],
+                    capture_output=True,
+                    text=True,
+                    timeout=30,
+                )
+                captcha_code = proc.stdout.strip()
+                logger.info(f"✅ 验证码识别结果: {captcha_code}")
+            except Exception as e:
+                logger.warning(f"OCR 子进程异常: {e}")
+        else:
+            logger.warning("验证码图片获取失败或为空")
+    except Exception as ex:
+        logger.error(f"验证码处理异常: {ex}")
+
+    # ── Step 3: 加密密码并提交表单 ───────────────────────────────
+    encrypted_pwd = _urp_encrypt_password(password)
+    form_data = {
+        "j_username": username,
+        "j_password": encrypted_pwd,
+        "j_captcha": captcha_code,
+        "tokenValue": token_value,
+        "lang": "zh"
+    }
+
+    logger.info("提交登录表单...")
+    try:
+        login_resp = session.post(
+            LOGIN_ACTION,
+            data=form_data,
+            headers={
+                "Referer": LOGIN_URL,
+                "Content-Type": "application/x-www-form-urlencoded",
+            },
+            allow_redirects=True,
+            timeout=20,
+        )
+    except Exception as ex:
+        raise RuntimeError(f"登录请求失败: {ex}")
+
+    # ── Step 4: 判断登录结果 ─────────────────────────────────────
+    resp_text = login_resp.text
+    
+    if "errorCode=badCaptcha" in login_resp.url or "验证码错误" in resp_text:
+        raise RuntimeError("验证码错误")
+    if "errorCode=badCredentials" in login_resp.url or "密码错误" in resp_text or "用户名或密码" in resp_text:
+        raise RuntimeError("账号或密码错误")
+    
+    if "j_username" not in resp_text and "j_password" not in resp_text:
+        logger.info("✅ 登录成功！")
+        return session
 
     raise RuntimeError("登录失败，请检查账号密码或教务系统状态。")
 
