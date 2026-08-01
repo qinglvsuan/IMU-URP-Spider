@@ -171,6 +171,7 @@ def api_gpa():
     try:
         info = db.get_student_info()
         real_gpa = info.get("gpa", 0.0)
+        req_credits = float(info.get("credits_required", 0) or 160.0)
         
         # 获取本地学分统计
         scores = db.get_all_scores()
@@ -183,7 +184,7 @@ def api_gpa():
         return jsonify({
             "gpa": real_gpa,
             "credits_earned": round(total_credit, 1),
-            "credits_required": 160.0  # 普遍的毕业要求学分估算值
+            "credits_required": req_credits if req_credits > 0 else 160.0
         })
     except Exception as ex:
         return jsonify({"error": str(ex)}), 500
@@ -202,9 +203,16 @@ def api_logs():
 def api_config_all():
     """
     获取所有配置供前端展示。
-    已经受 X-Panel-Token 保护，返回明文以便前端小眼睛查看。
+    只有在正确验证面板凭据时才返回明文密码，未配置或未验证时强制应用掩码。
     """
-    return jsonify(cfg.get_all(mask_secrets=False))
+    pw = cfg.get("panel_password")
+    token = request.headers.get("X-Panel-Token", "") or request.args.get("token", "")
+    user = request.headers.get("X-Panel-User", "") or request.args.get("user", "")
+    expected_user = cfg.get("panel_username", "")
+    
+    # 只有当面板设置了密码且凭据校验通过时才返回明文
+    is_authenticated = bool(pw) and (token == pw) and (user == expected_user)
+    return jsonify(cfg.get_all(mask_secrets=not is_authenticated))
 
 
 @app.route("/api/config/save", methods=["POST"])

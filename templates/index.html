@@ -1246,6 +1246,9 @@ function renderScoreRow(s) {
         </div>
       `;
   }
+
+  const examType = s.exam_type ? `<span class="cfg-tag ${s.exam_type==='考试'?'enabled':''}">${escapeHtml(s.exam_type)}</span>` : '—';
+  const nature = s.course_nature ? `<span class="cfg-tag">${escapeHtml(s.course_nature)}</span>` : '—';
   
   return `<tr>
     <td style="font-weight:500">${escapeHtml(s.course_name || '—')}</td>
@@ -1256,8 +1259,8 @@ function renderScoreRow(s) {
       </div>
     </td>
     <td>${escapeHtml(s.credit || '—')}</td>
-    <td style="color:var(--muted);font-size:12px">${escapeHtml(s.exam_type || '—')}</td>
-    <td style="color:var(--muted);font-size:12px">${escapeHtml(s.course_nature || '—')}</td>
+    <td>${examType}</td>
+    <td>${nature}</td>
     <td style="font-size:12px">${classStats}</td>
     <td style="color:var(--muted);font-size:12px;font-family:'JetBrains Mono',monospace">${escapeHtml(s.term || '—')}</td>
   </tr>`;
@@ -1583,9 +1586,9 @@ function renderSchedule(semester, courses) {
                     border:1px solid var(--border);border-radius:8px;padding:8px 14px;font-size:13px;">
           <span style="width:10px;height:10px;border-radius:3px;flex-shrink:0;"
                 class="${colorMap[c.name]}"></span>
-          <strong>${c.name}</strong>
-          <span style="color:var(--muted)">${c.teacher||''}</span>
-          <span style="color:var(--muted);font-size:12px">${c.location||''}</span>
+          <strong>${escapeHtml(c.name)}</strong>
+          <span style="color:var(--muted)">${escapeHtml(c.teacher||'')}</span>
+          <span style="color:var(--muted);font-size:12px">${escapeHtml(c.location||'')}</span>
         </div>`).join('')}
     </div>
   </div>`;

@@ -15,8 +15,13 @@ DB_PATH = Path(__file__).parent / "data" / "spider.db"
 
 def get_conn() -> sqlite3.Connection:
     DB_PATH.parent.mkdir(exist_ok=True)
-    conn = sqlite3.connect(str(DB_PATH), check_same_thread=False)
+    conn = sqlite3.connect(str(DB_PATH), timeout=30.0, check_same_thread=False)
     conn.row_factory = sqlite3.Row
+    try:
+        conn.execute("PRAGMA journal_mode = WAL;")
+        conn.execute("PRAGMA busy_timeout = 30000;")
+    except Exception:
+        pass
     return conn
 
 
@@ -94,13 +99,19 @@ def upsert_scores(scores: list) -> list:
             course_code = s.get("course_code", "")
             term = s.get("term", "")
             
-            # 检查是否是新成绩
+            # 检查是否是新成绩或改分更正
             row = conn.execute(
-                "SELECT id FROM scores WHERE course_code = ? AND term = ?",
+                "SELECT id, score, score_raw FROM scores WHERE course_code = ? AND term = ?",
                 (course_code, term)
             ).fetchone()
             is_new = (row is None)
-            
+            is_changed = False
+            if not is_new and row:
+                old_raw = str(row["score_raw"]) if row["score_raw"] is not None else ""
+                new_raw = str(s.get("score_raw", "")) if s.get("score_raw") is not None else ""
+                if new_raw and old_raw != new_raw and old_raw not in ("None", ""):
+                    is_changed = True
+
             try:
                 conn.execute(
                     """
@@ -135,7 +146,7 @@ def upsert_scores(scores: list) -> list:
                         s.get("min_score"),
                     ),
                 )
-                if is_new:
+                if is_new or is_changed:
                     new_scores.append(s)
             except sqlite3.Error as e:
                 logger.error(f"Failed to upsert score: {e}")
