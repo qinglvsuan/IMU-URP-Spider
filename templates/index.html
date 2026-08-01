@@ -1017,13 +1017,33 @@ let allScores = [];
 let hasShownIMUSetup = false;
 
 // ── Overlay Actions ──
-function submitAuth() {
+async function submitAuth() {
   const user = document.getElementById('auth-username-input').value.trim();
   const pwd = document.getElementById('auth-password-input').value;
   if (!pwd) return toast('请输入密码', 'error');
-  localStorage.setItem('panel_user', user);
-  localStorage.setItem('panel_token', pwd);
-  location.reload();
+  
+  try {
+    const opts = {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Panel-User': user,
+        'X-Panel-Token': pwd
+      }
+    };
+    const r = await fetch('/api/status', opts);
+    if (r.status === 401) {
+      return toast('❌ 面板账号或密码错误', 'error');
+    }
+    localStorage.setItem('panel_user', user);
+    localStorage.setItem('panel_token', pwd);
+    window.isAuthFailed = false;
+    document.getElementById('auth-overlay').style.display = 'none';
+    toast('✅ 验证成功！', 'success');
+    setTimeout(() => location.reload(), 500);
+  } catch (e) {
+    toast('验证失败: ' + e.message, 'error');
+  }
 }
 
 async function submitPanelSetup() {
@@ -1110,9 +1130,11 @@ async function api(path, method = 'GET', body = null) {
   if (body) opts.body = JSON.stringify(body);
   const r = await fetch(path, opts);
   if (r.status === 401) {
+    window.isAuthFailed = true;
     document.getElementById('auth-overlay').style.display = 'flex';
     throw new Error('Unauthorized');
   }
+  window.isAuthFailed = false;
   return r.json();
 }
 
@@ -1646,10 +1668,15 @@ async function init() {
   await loadStatus();
   await loadGPA();
   loadScores();  // Also loads recent scores on dashboard
-  // Auto-refresh status every 30s
-  setInterval(loadStatus, 30000);
+  // Auto-refresh status every 30s (pause when unauthenticated)
+  setInterval(() => {
+    const authOverlay = document.getElementById('auth-overlay');
+    const isShowingAuth = authOverlay && authOverlay.style.display === 'flex';
+    if (!window.isAuthFailed && !isShowingAuth) {
+      loadStatus();
+    }
+  }, 30000);
 }
-
 init();
 </script>
 </body>

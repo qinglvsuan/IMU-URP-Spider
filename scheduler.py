@@ -154,6 +154,7 @@ def start(interval_minutes: int = 10) -> BackgroundScheduler:
         trigger=IntervalTrigger(minutes=interval_minutes),
         id="check_scores",
         name="成绩检查",
+        misfire_grace_time=300,
         replace_existing=True,
     )
 
