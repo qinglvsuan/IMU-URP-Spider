@@ -26,6 +26,7 @@
       --grad2:    linear-gradient(135deg, #238636 0%, #3fb950 100%);
       --radius:   12px;
       --shadow:   0 8px 32px rgba(0,0,0,0.4);
+      color-scheme: dark;
     }
     
     :root.light-mode {
@@ -43,6 +44,7 @@
       --grad:     linear-gradient(135deg, #0969da 0%, #54a3ff 100%);
       --grad2:    linear-gradient(135deg, #1a7f37 0%, #2ea043 100%);
       --shadow:   0 8px 32px rgba(0,0,0,0.1);
+      color-scheme: light;
     }
 
     html { scroll-behavior: smooth; }
@@ -1016,6 +1018,12 @@
   -webkit-appearance: none;
 }
 .cfg-input:focus { border-color:var(--accent); background:rgba(88,166,255,0.05); }
+
+select option {
+  background-color: var(--surface) !important;
+  color: var(--text) !important;
+}
+
 .cfg-tag {
   display:inline-block; padding:2px 8px; border-radius:10px;
   font-size:11px; font-weight:600;
