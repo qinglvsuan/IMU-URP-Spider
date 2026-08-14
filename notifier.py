@@ -125,6 +125,10 @@ def notify_new_scores(new_scores: list, student_name: str = ""):
     """
     有新成绩时，通过所有已配置的渠道发送通知。
     """
+    if cfg.get("push_enabled", "true").lower() == "false":
+        logger.info("⏸️ 推送服务已关闭，跳过所有外部消息通知")
+        return {}
+
     if not new_scores:
         return
 
@@ -235,6 +239,10 @@ def notify_new_scores(new_scores: list, student_name: str = ""):
 
 def notify_login_error(error_msg: str):
     """登录失败时发送告警。"""
+    if cfg.get("push_enabled", "true").lower() == "false":
+        logger.info("⏸️ 推送服务已关闭，跳过登录错误通知")
+        return
+
     title = "⚠️ IMU Spider 登录失败"
     body = f"教务系统登录失败，请检查账号密码或网络。\n\n错误信息：{error_msg}"
     send_serverchan(title, body)

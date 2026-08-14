@@ -61,6 +61,11 @@ def _ensure_session():
 def check_scores():
     """检查成绩更新（定时任务主逻辑）。"""
     global _student_name
+    if cfg.get("spider_enabled", "true").lower() == "false":
+        logger.info("⏸️ 定时查询服务已关闭，跳过成绩检查")
+        db.add_log("INFO", "⏸️ 定时查询服务已关闭，跳过检查")
+        return
+
     logger.info("▶ 开始检查成绩...")
     db.add_log("INFO", "开始检查成绩")
 
@@ -111,6 +116,10 @@ def check_scores():
 def refresh_all_data():
     """刷新所有数据（成绩+课表+学生信息），每次启动时执行一次。"""
     global _student_name
+    if cfg.get("spider_enabled", "true").lower() == "false":
+        logger.info("⏸️ 查询服务已关闭，跳过启动全量刷新")
+        return
+
     session = _ensure_session()
     if not session:
         return

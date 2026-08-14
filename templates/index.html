@@ -807,6 +807,22 @@
             <div style="font-size:11px;color:var(--muted);margin-top:4px;">建议不低于 5 分钟，保存后立即生效</div>
           </div>
           <div>
+            <label class="cfg-label" for="cfg-spider-enabled">定时查询服务开关</label>
+            <select class="cfg-input" id="cfg-spider-enabled">
+              <option value="true">🟢 开启（自动轮询教务系统）</option>
+              <option value="false">🔴 关闭（学校断网/维护时暂停查询）</option>
+            </select>
+            <div style="font-size:11px;color:var(--muted);margin-top:4px;">学校服务器挂了时建议关闭，避免无意义失败</div>
+          </div>
+          <div>
+            <label class="cfg-label" for="cfg-push-enabled">消息推送服务开关</label>
+            <select class="cfg-input" id="cfg-push-enabled">
+              <option value="true">🟢 开启（正常发送推送）</option>
+              <option value="false">🔴 关闭（全局静音，不推消息）</option>
+            </select>
+            <div style="font-size:11px;color:var(--muted);margin-top:4px;">一键静音 Telegram / 微信 / 邮件告警</div>
+          </div>
+          <div>
             <label class="cfg-label" for="cfg-panel-user">面板访问账号</label>
             <input class="cfg-input" id="cfg-panel-user" type="text" placeholder="留空则不设账号限制" autocomplete="username">
           </div>
@@ -1411,6 +1427,8 @@ async function loadSettings() {
     document.getElementById('cfg-username').value  = d.imu_username || '';
     document.getElementById('cfg-password').value  = d.imu_password || '';
     document.getElementById('cfg-interval').value  = d.check_interval || '10';
+    document.getElementById('cfg-spider-enabled').value = d.spider_enabled || 'true';
+    document.getElementById('cfg-push-enabled').value   = d.push_enabled || 'true';
     document.getElementById('cfg-panel-user').value = d.panel_username || '';
     document.getElementById('cfg-panel-pw').value  = d.panel_password || '';
 
@@ -1453,6 +1471,8 @@ async function saveSettings() {
     imu_username:       document.getElementById('cfg-username').value.trim(),
     imu_password:       document.getElementById('cfg-password').value,
     check_interval:     document.getElementById('cfg-interval').value.trim(),
+    spider_enabled:     document.getElementById('cfg-spider-enabled').value,
+    push_enabled:       document.getElementById('cfg-push-enabled').value,
     panel_username:     document.getElementById('cfg-panel-user').value.trim(),
     panel_password:     document.getElementById('cfg-panel-pw').value,
     email_smtp_host:    document.getElementById('cfg-smtp-host').value.trim(),

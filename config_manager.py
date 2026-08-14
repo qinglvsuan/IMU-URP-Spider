@@ -19,6 +19,9 @@ DEFAULTS = {
     "check_interval":     "10",
     "panel_username":     "",
     "panel_password":     "",
+    # 服务开关
+    "spider_enabled":     "true",
+    "push_enabled":       "true",
     # 邮件
     "email_smtp_host":    "smtp.qq.com",
     "email_smtp_port":    "465",
@@ -40,6 +43,8 @@ ENV_MAPPING = {
     "CHECK_INTERVAL":      "check_interval",
     "PANEL_USERNAME":      "panel_username",
     "PANEL_PASSWORD":      "panel_password",
+    "SPIDER_ENABLED":      "spider_enabled",
+    "PUSH_ENABLED":        "push_enabled",
     "EMAIL_SMTP_HOST":     "email_smtp_host",
     "EMAIL_SMTP_PORT":     "email_smtp_port",
     "EMAIL_SMTP_SSL":      "email_smtp_ssl",

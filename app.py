@@ -85,6 +85,8 @@ def api_status():
         "schedule_updated_at": schedule.get("updated_at", ""),
         "setup_required": not cfg.get("imu_username") or not cfg.get("imu_password"),
         "panel_setup_required": not cfg.get("panel_password"),
+        "spider_enabled": cfg.get("spider_enabled", "true").lower() == "true",
+        "push_enabled": cfg.get("push_enabled", "true").lower() == "true",
         "check_interval": cfg.get("check_interval", "10"),
         "server_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
     })
