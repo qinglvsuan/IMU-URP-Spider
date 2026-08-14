@@ -388,6 +388,43 @@
     .toggle-switch input:checked + .toggle-slider { background: var(--accent2); }
     .toggle-switch input:checked + .toggle-slider::before { transform: translateX(18px); }
 
+    /* ── Segmented Control ────────────────────────────── */
+    .segmented-control {
+      display: flex;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 3px;
+      gap: 4px;
+    }
+    .segment-btn {
+      flex: 1;
+      border: none;
+      background: transparent;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 500;
+      padding: 8px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+    .segment-btn.active {
+      background: var(--surface);
+      color: var(--text);
+      border: 1px solid var(--border);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+      font-weight: 600;
+    }
+    .segment-btn:hover:not(.active) {
+      color: var(--text);
+      background: rgba(255, 255, 255, 0.04);
+    }
+
     /* ── Overlays ────────────────────────────────────── */
     .overlay {
       position: fixed; inset: 0; z-index: 10000;
@@ -809,19 +846,21 @@
             <div style="font-size:11px;color:var(--muted);margin-top:4px;">建议不低于 5 分钟，保存后立即生效</div>
           </div>
           <div>
-            <label class="cfg-label" for="cfg-spider-enabled">定时查询服务开关</label>
-            <select class="cfg-input" id="cfg-spider-enabled">
-              <option value="true">🟢 开启（自动轮询教务系统）</option>
-              <option value="false">🔴 关闭（学校断网/维护时暂停查询）</option>
-            </select>
+            <label class="cfg-label">定时查询服务开关</label>
+            <div class="segmented-control">
+              <button type="button" class="segment-btn active" data-value="true" onclick="setSegment('cfg-spider-enabled', 'true')">🟢 开启</button>
+              <button type="button" class="segment-btn" data-value="false" onclick="setSegment('cfg-spider-enabled', 'false')">🔴 关闭</button>
+              <input type="hidden" id="cfg-spider-enabled" value="true">
+            </div>
             <div style="font-size:11px;color:var(--muted);margin-top:4px;">学校服务器挂了时建议关闭，避免无意义失败</div>
           </div>
           <div>
-            <label class="cfg-label" for="cfg-push-enabled">消息推送服务开关</label>
-            <select class="cfg-input" id="cfg-push-enabled">
-              <option value="true">🟢 开启（正常发送推送）</option>
-              <option value="false">🔴 关闭（全局静音，不推消息）</option>
-            </select>
+            <label class="cfg-label">消息推送服务开关</label>
+            <div class="segmented-control">
+              <button type="button" class="segment-btn active" data-value="true" onclick="setSegment('cfg-push-enabled', 'true')">🟢 开启</button>
+              <button type="button" class="segment-btn" data-value="false" onclick="setSegment('cfg-push-enabled', 'false')">🔴 关闭</button>
+              <input type="hidden" id="cfg-push-enabled" value="true">
+            </div>
             <div style="font-size:11px;color:var(--muted);margin-top:4px;">一键静音 Telegram / 微信 / 邮件告警</div>
           </div>
           <div>
@@ -872,10 +911,11 @@
             </div>
             <div>
               <label class="cfg-label">SSL加密</label>
-              <select class="cfg-input" id="cfg-smtp-ssl">
-                <option value="true">启用 (推荐)</option>
-                <option value="false">禁用</option>
-              </select>
+              <div class="segmented-control">
+                <button type="button" class="segment-btn active" data-value="true" onclick="setSegment('cfg-smtp-ssl', 'true')">启用</button>
+                <button type="button" class="segment-btn" data-value="false" onclick="setSegment('cfg-smtp-ssl', 'false')">禁用</button>
+                <input type="hidden" id="cfg-smtp-ssl" value="true">
+              </div>
             </div>
           </div>
           <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;">
@@ -1421,6 +1461,22 @@ function togglePwd(id) {
   el.type = el.type === 'password' ? 'text' : 'password';
 }
 
+function setSegment(inputId, val) {
+  const input = document.getElementById(inputId);
+  if (!input) return;
+  const strVal = String(val);
+  input.value = strVal;
+  const ctrl = input.closest('.segmented-control');
+  if (!ctrl) return;
+  ctrl.querySelectorAll('.segment-btn').forEach(btn => {
+    if (btn.getAttribute('data-value') === strVal) {
+      btn.classList.add('active');
+    } else {
+      btn.classList.remove('active');
+    }
+  });
+}
+
 function setTag(id, enabled) {
   const el = document.getElementById(id);
   if (!el) return;
@@ -1435,8 +1491,9 @@ async function loadSettings() {
     document.getElementById('cfg-username').value  = d.imu_username || '';
     document.getElementById('cfg-password').value  = d.imu_password || '';
     document.getElementById('cfg-interval').value  = d.check_interval || '10';
-    document.getElementById('cfg-spider-enabled').value = d.spider_enabled || 'true';
-    document.getElementById('cfg-push-enabled').value   = d.push_enabled || 'true';
+    setSegment('cfg-spider-enabled', d.spider_enabled || 'true');
+    setSegment('cfg-push-enabled',   d.push_enabled || 'true');
+    setSegment('cfg-smtp-ssl',       d.email_smtp_ssl || 'true');
     document.getElementById('cfg-panel-user').value = d.panel_username || '';
     document.getElementById('cfg-panel-pw').value  = d.panel_password || '';
 
