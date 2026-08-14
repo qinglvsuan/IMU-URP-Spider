@@ -17,15 +17,16 @@ logger = logging.getLogger(__name__)
 # 全局 Session（登录态）
 _session = None
 _student_name = ""
-_login_locked = False
+_consecutive_failures = 0
 
 def _ensure_session():
     """确保 Session 有效，必要时重新登录。"""
-    global _session, _login_locked
+    global _session, _login_locked, _consecutive_failures
     username = cfg.get("imu_username")
     password = cfg.get("imu_password")
 
     if _session and auth.test_session_valid(_session):
+        _consecutive_failures = 0
         return _session
 
     if _login_locked:
@@ -35,19 +36,25 @@ def _ensure_session():
     logger.info("Session 无效，重新登录...")
     try:
         _session = auth.login(username, password)
+        _consecutive_failures = 0
         db.add_log("INFO", "✅ 登录成功")
         return _session
     except Exception as ex:
         err_msg = str(ex)
+        _consecutive_failures += 1
+
         if "账号或密码错误" in err_msg:
             _login_locked = True
             logger.error("账号或密码错误，为防止账号被锁定，已暂停自动重试。请在设置中修改密码。")
             db.add_log("ERROR", "❌ 账号或密码错误，已暂停自动登录，请重设密码。")
+            notifier.notify_login_error(err_msg)
         else:
-            logger.error(f"登录失败: {ex}")
+            logger.error(f"登录失败 (连续{_consecutive_failures}次): {ex}")
             db.add_log("ERROR", f"❌ 登录失败: {ex}")
+            # 只有当偶然失败（如验证码误判、网络超时）连续失败 >= 3 次时，才触发外部推送通知，避免偶发单次识别误判骚扰用户
+            if _consecutive_failures >= 3:
+                notifier.notify_login_error(f"连续{_consecutive_failures}次登录失败: {err_msg}")
         
-        notifier.notify_login_error(err_msg)
         return None
 
 
